@@ -11,6 +11,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var assets = map[string]string{
+	"github-markdown.min.css":      "https://cdn.jsdelivr.net/npm/github-markdown-css@5.5.1/github-markdown.min.css",
+	"highlight-github.min.css":     "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css",
+	"highlight-github-dark.min.css": "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css",
+	"highlight.min.js":             "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js",
+	"mermaid.min.js":               "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js",
+}
+
 var vendorCmd = &cobra.Command{
 	Use:   "vendor",
 	Short: "Download third-party CSS/JS assets locally for offline use",
@@ -27,14 +35,6 @@ and saves them to the third_party/ directory so they can be embedded inside the 
 		log.Printf("Creating directory: %s", thirdPartyDir)
 		if err := os.MkdirAll(thirdPartyDir, 0755); err != nil {
 			log.Fatalf("Failed to create third_party directory: %v", err)
-		}
-
-		assets := map[string]string{
-			"github-markdown.min.css":      "https://cdn.jsdelivr.net/npm/github-markdown-css@5.5.1/github-markdown.min.css",
-			"highlight-github.min.css":     "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css",
-			"highlight-github-dark.min.css": "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css",
-			"highlight.min.js":             "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js",
-			"mermaid.min.js":               "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js",
 		}
 
 		for filename, url := range assets {
