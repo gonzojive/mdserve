@@ -265,6 +265,14 @@ func handleJSONRPC(stream *webtransport.Stream, req jsonRPCRequest) {
 						"required": []string{"theme"},
 					},
 				},
+				map[string]interface{}{
+					"name":        "get_browser_logs",
+					"description": "Retrieve recent browser console logs and runtime errors for debugging",
+					"inputSchema": map[string]interface{}{
+						"type":       "object",
+						"properties": map[string]interface{}{},
+					},
+				},
 			},
 		}
 

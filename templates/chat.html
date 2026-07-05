@@ -613,6 +613,42 @@
         setTheme(currentMode === 'dark' ? 'light' : 'dark');
       });
 
+      // Browser Console Log Capturer
+      const browserLogs = [];
+      function captureLog(type, message) {
+        const timestamp = new Date().toLocaleTimeString();
+        browserLogs.push(`[${timestamp}] [${type.toUpperCase()}] ${message}`);
+        if (browserLogs.length > 100) {
+            browserLogs.shift();
+        }
+      }
+
+      // Override console.log
+      const origConsoleLog = console.log;
+      console.log = function(...args) {
+        captureLog("log", args.join(" "));
+        origConsoleLog.apply(console, args);
+      };
+
+      // Override console.error
+      const origConsoleError = console.error;
+      console.error = function(...args) {
+        captureLog("error", args.join(" "));
+        origConsoleError.apply(console, args);
+      };
+
+      // Override console.warn
+      const origConsoleWarn = console.warn;
+      console.warn = function(...args) {
+        captureLog("warn", args.join(" "));
+        origConsoleWarn.apply(console, args);
+      };
+
+      // Capture runtime errors
+      window.addEventListener('error', function(e) {
+        captureLog("runtime-error", `${e.message} at ${e.filename}:${e.lineno}`);
+      });
+
       // Active Diagram Harness
       let currentDiagramCode = `graph TD\n  Start[Start Node] --> Action[Agent Action]\n  Action --> Render[Mermaid Rendered]`;
 
@@ -924,6 +960,10 @@
                     const theme = req.payload.theme;
                     setTheme(theme);
                     result = `Theme updated to ${theme} successfully.`;
+                    break;
+                    
+                case "get_browser_logs":
+                    result = browserLogs.length > 0 ? browserLogs.join("\n") : "No logs recorded.";
                     break;
                     
                 default:
