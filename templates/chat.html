@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en" data-color-mode="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebTransport Chat Experiment - MDServe</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- GitHub Markdown CSS -->
+    <link rel="stylesheet" href="/third_party/github-markdown.min.css">
+
+    <style>
+      :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f6f8fa;
+        --border-color: #d0d7de;
+        --text-primary: #24292f;
+        --text-secondary: #57606a;
+        
+        --glass-bg: rgba(255, 255, 255, 0.7);
+        --glass-border: rgba(208, 215, 222, 0.5);
+        
+        --color-accent: #0969da;
+        --color-accent-hover: #0c57c4;
+        --color-accent-light: #ddf4ff;
+        
+        --shadow-main: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+        --radius-bubble: 16px;
+      }
+
+      [data-color-mode="dark"] {
+        --bg-primary: #0d1117;
+        --bg-secondary: #161b22;
+        --border-color: #30363d;
+        --text-primary: #c9d1d9;
+        --text-secondary: #8b949e;
+        
+        --glass-bg: rgba(22, 27, 34, 0.8);
+        --glass-border: rgba(48, 54, 61, 0.6);
+        
+        --color-accent: #1f6feb;
+        --color-accent-hover: #388bfd;
+        --color-accent-light: rgba(56, 139, 253, 0.15);
+        
+        --shadow-main: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      /* Premium Header */
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 24px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--glass-border);
+        z-index: 10;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+
+      .header-title-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .logo-link {
+        color: var(--text-primary);
+        text-decoration: none;
+        font-family: 'Outfit', sans-serif;
+        font-size: 20px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .experiment-badge {
+        font-size: 11px;
+        font-weight: 600;
+        color: #ffffff;
+        background: linear-gradient(135deg, #ff8c00, #e52d27);
+        padding: 2px 8px;
+        border-radius: 12px;
+        letter-spacing: 0.5px;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      /* Theme toggle button */
+      .theme-btn {
+        background: none;
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        padding: 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s, border-color 0.2s;
+      }
+
+      .theme-btn:hover {
+        background-color: var(--bg-secondary);
+      }
+
+      /* Chat Dashboard Layout */
+      .chat-container {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* Info Sidebar */
+      .sidebar {
+        width: 320px;
+        background: var(--bg-primary);
+        border-right: 1px solid var(--border-color);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        overflow-y: auto;
+      }
+
+      .card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .card-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .status-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: #8b949e;
+      }
+
+      .status-dot.connecting {
+        background-color: #d29922;
+        animation: pulse 1.5s infinite;
+      }
+
+      .status-dot.connected {
+        background-color: #3fb950;
+      }
+
+      .status-dot.disconnected {
+        background-color: #f85149;
+      }
+
+      @keyframes pulse {
+        0% { transform: scale(0.9); opacity: 0.6; }
+        50% { transform: scale(1.1); opacity: 1; }
+        100% { transform: scale(0.9); opacity: 0.6; }
+      }
+
+      .hash-box {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        word-break: break-all;
+        background: var(--bg-primary);
+        padding: 8px;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+      }
+
+      /* Main Chat Panel */
+      .chat-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-primary);
+      }
+
+      /* Chat Messages Scroll Window */
+      .chat-messages {
+        flex: 1;
+        padding: 24px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .message-wrapper {
+        display: flex;
+        flex-direction: column;
+        max-width: 70%;
+      }
+
+      .message-wrapper.self {
+        align-self: flex-end;
+      }
+
+      .message-wrapper.other {
+        align-self: flex-start;
+      }
+
+      .message-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+
+      .message-sender {
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .sender-badge {
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+
+      .sender-badge.browser {
+        background-color: var(--color-accent-light);
+        color: var(--color-accent);
+      }
+
+      .sender-badge.devtool {
+        background-color: #fde8e8;
+        color: #e02424;
+      }
+
+      [data-color-mode="dark"] .sender-badge.devtool {
+        background-color: rgba(224, 36, 36, 0.15);
+        color: #ff8080;
+      }
+
+      .sender-badge.server {
+        background-color: #f3e8ff;
+        color: #7e3af2;
+      }
+
+      [data-color-mode="dark"] .sender-badge.server {
+        background-color: rgba(126, 58, 242, 0.15);
+        color: #c084fc;
+      }
+
+      .message-bubble {
+        padding: 12px 16px;
+        border-radius: var(--radius-bubble);
+        font-size: 14px;
+        line-height: 1.5;
+        word-break: break-word;
+      }
+
+      .message-wrapper.self .message-bubble {
+        background-color: var(--color-accent);
+        color: #ffffff;
+        border-bottom-right-radius: 4px;
+      }
+
+      .message-wrapper.other .message-bubble {
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-bottom-left-radius: 4px;
+      }
+
+      /* Chat System Notification */
+      .message-system {
+        align-self: center;
+        background-color: var(--bg-secondary);
+        color: var(--text-secondary);
+        font-size: 11px;
+        padding: 4px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        text-align: center;
+        max-width: 80%;
+      }
+
+      /* Chat Input Footer */
+      .chat-footer {
+        padding: 16px 24px;
+        border-top: 1px solid var(--border-color);
+        background: var(--bg-primary);
+      }
+
+      .input-container {
+        display: flex;
+        gap: 12px;
+      }
+
+      .chat-input {
+        flex: 1;
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s, background-color 0.2s;
+      }
+
+      .chat-input:focus {
+        border-color: var(--color-accent);
+        background-color: var(--bg-primary);
+      }
+
+      .send-btn {
+        background-color: var(--color-accent);
+        color: #ffffff;
+        border: none;
+        padding: 0 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .send-btn:hover {
+        background-color: var(--color-accent-hover);
+      }
+
+      .back-to-docs {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 500;
+        transition: color 0.2s;
+      }
+
+      .back-to-docs:hover {
+        color: var(--color-accent);
+      }
+    </style>
+</head>
+<body>
+    <!-- Premium Header -->
+    <header>
+        <div class="header-title-container">
+            <a href="/" class="logo-link">
+                <svg style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                <span>MDServe</span>
+            </a>
+            <span class="experiment-badge">QUIC CHAT</span>
+        </div>
+        
+        <div class="header-actions">
+            <a href="/" class="back-to-docs">
+                <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                Back to Docs
+            </a>
+            <button class="theme-btn" id="theme-toggle" aria-label="Toggle Theme">
+                <!-- Sun Icon -->
+                <svg id="theme-sun" style="width: 18px; height: 18px; display: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                <!-- Moon Icon -->
+                <svg id="theme-moon" style="width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <div class="chat-container">
+        <!-- Sidebar Info -->
+        <aside class="sidebar">
+            <div class="card">
+                <div class="card-title">Connection Status</div>
+                <div class="status-container">
+                    <div class="status-dot connecting" id="status-dot"></div>
+                    <span id="status-text">Connecting...</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Server Certificate SHA-256 Hash</div>
+                <div class="hash-box" id="cert-hash-display">{{.CertHash}}</div>
+                <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+                    Used by WebTransport constructor to trust this self-signed certificate.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Developer Tool CLI</div>
+                <div style="font-size: 13px; line-height: 1.5; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px;">
+                    <div>Send a message from the terminal:</div>
+                    <code style="background: var(--bg-primary); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border-color);">devtool chat -m "Hello!"</code>
+                    <div>Or join interactively:</div>
+                    <code style="background: var(--bg-primary); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border-color);">devtool chat</code>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Chat Workspace -->
+        <main class="chat-panel">
+            <!-- Messages window -->
+            <div class="chat-messages" id="chat-messages-container">
+                <div class="message-system">
+                    Initiating WebTransport connection to localhost:{{.WTPort}} over HTTP/3 QUIC...
+                </div>
+            </div>
+
+            <!-- Input area -->
+            <div class="chat-footer">
+                <form class="input-container" id="chat-form" onsubmit="sendMessage(event)">
+                    <input type="text" class="chat-input" id="message-input" placeholder="Type a message..." autocomplete="off" disabled>
+                    <button type="submit" class="send-btn" id="send-button" disabled>
+                        <span>Send</span>
+                        <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script>
+      // Injected values from Go template
+      const rawHashHex = "{{.CertHash}}";
+      const wtPort = "{{.WTPort}}";
+      
+      // Elements
+      const messagesContainer = document.getElementById('chat-messages-container');
+      const statusDot = document.getElementById('status-dot');
+      const statusText = document.getElementById('status-text');
+      const messageInput = document.getElementById('message-input');
+      const sendButton = document.getElementById('send-button');
+
+      // Theme toggle
+      const themeToggleBtn = document.getElementById('theme-toggle');
+      const themeSunIcon = document.getElementById('theme-sun');
+      const themeMoonIcon = document.getElementById('theme-moon');
+
+      function setTheme(mode) {
+        document.documentElement.setAttribute('data-color-mode', mode);
+        localStorage.setItem('theme', mode);
+        if (mode === 'dark') {
+          themeSunIcon.style.display = 'block';
+          themeMoonIcon.style.display = 'none';
+        } else {
+          themeSunIcon.style.display = 'none';
+          themeMoonIcon.style.display = 'block';
+        }
+      }
+      const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      setTheme(savedTheme);
+      themeToggleBtn.addEventListener('click', () => {
+        const currentMode = document.documentElement.getAttribute('data-color-mode');
+        setTheme(currentMode === 'dark' ? 'light' : 'dark');
+      });
+
+      // WebTransport connection elements
+      let transport = null;
+      let bidirStream = null;
+      let streamWriter = null;
+
+      // Helper to convert hex string to Uint8Array bytes
+      function hexToBytes(hexString) {
+        const matches = hexString.match(/.{1,2}/g);
+        if (!matches) return new Uint8Array();
+        return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
+      }
+
+      // Append System Message
+      function appendSystemMessage(text) {
+        const div = document.createElement('div');
+        div.className = 'message-system';
+        div.textContent = text;
+        messagesContainer.appendChild(div);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      // Append Chat Message
+      function appendChatMessage(sender, content, timestamp, isSelf) {
+        const wrapper = document.createElement('div');
+        wrapper.className = `message-wrapper ${isSelf ? 'self' : 'other'}`;
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'message-header';
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'message-sender';
+        nameSpan.textContent = isSelf ? 'Me' : sender;
+        headerDiv.appendChild(nameSpan);
+
+        // Add client type badge
+        let badgeType = "browser";
+        if (sender.toLowerCase().includes("devtool") || sender.toLowerCase().includes("cli")) {
+            badgeType = "devtool";
+        } else if (sender.toLowerCase().includes("server")) {
+            badgeType = "server";
+        }
+        
+        const badge = document.createElement('span');
+        badge.className = `sender-badge ${badgeType}`;
+        badge.textContent = badgeType.toUpperCase();
+        headerDiv.appendChild(badge);
+
+        const timeSpan = document.createElement('span');
+        const dateObj = timestamp ? new Date(timestamp) : new Date();
+        timeSpan.textContent = dateObj.toLocaleTimeString();
+        headerDiv.appendChild(timeSpan);
+
+        wrapper.appendChild(headerDiv);
+
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        bubble.textContent = content;
+        wrapper.appendChild(bubble);
+
+        messagesContainer.appendChild(wrapper);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      // Connect to WebTransport endpoint
+      async function connectWebTransport() {
+        if (!window.WebTransport) {
+            appendSystemMessage("Error: Your browser does not support WebTransport. Please use a modern version of Chrome, Edge, or Firefox.");
+            statusDot.className = 'status-dot disconnected';
+            statusText.textContent = 'Unsupported';
+            return;
+        }
+
+        try {
+            const certHashBytes = hexToBytes(rawHashHex);
+            const wtUrl = `https://${window.location.hostname}:${wtPort}/webtransport`;
+            
+            appendSystemMessage(`Connecting to WebTransport endpoint: ${wtUrl}...`);
+            statusDot.className = 'status-dot connecting';
+            statusText.textContent = 'Connecting...';
+
+            transport = new WebTransport(wtUrl, {
+                serverCertificateHashes: [
+                    {
+                        algorithm: "sha-256",
+                        value: certHashBytes
+                    }
+                ]
+            });
+
+            // Wait for connection
+            await transport.ready;
+            
+            appendSystemMessage("WebTransport session established!");
+            statusDot.className = 'status-dot connected';
+            statusText.textContent = 'Connected';
+
+            // Create persistent bidirectional stream
+            bidirStream = await transport.createBidirectionalStream();
+            streamWriter = bidirStream.writable.getWriter();
+            
+            // Enable UI
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            messageInput.focus();
+
+            // Handle incoming data from the stream
+            readIncomingMessages(bidirStream.readable);
+
+            // Handle connection close
+            transport.closed.then(() => {
+                onConnectionClosed("Session closed normally.");
+            }).catch((err) => {
+                onConnectionClosed(`Session closed with error: ${err}`);
+            });
+
+        } catch (err) {
+            console.error("WebTransport setup error:", err);
+            onConnectionClosed(`Connection failed: ${err.message || err}`);
+        }
+      }
+
+      function onConnectionClosed(reason) {
+        appendSystemMessage(`Disconnected: ${reason}`);
+        statusDot.className = 'status-dot disconnected';
+        statusText.textContent = 'Disconnected';
+        
+        messageInput.disabled = true;
+        sendButton.disabled = true;
+        
+        // Attempt reconnection after 5 seconds
+        appendSystemMessage("Attempting to reconnect in 5 seconds...");
+        setTimeout(connectWebTransport, 5000);
+      }
+
+      // Read incoming JSON messages delimited by newline
+      async function readIncomingMessages(readable) {
+        const textDecoder = new TextDecoderStream();
+        const reader = readable.pipeThrough(textDecoder).getReader();
+        
+        let buffer = "";
+        try {
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += value;
+                let boundary = buffer.indexOf('\n');
+                while (boundary !== -1) {
+                    const line = buffer.substring(0, boundary).trim();
+                    buffer = buffer.substring(boundary + 1);
+                    
+                    if (line !== "") {
+                        try {
+                            const msg = JSON.parse(line);
+                            // Avoid duplicating messages we sent since we are also in the broadcast list
+                            const isSelf = (msg.sender === "Browser");
+                            appendChatMessage(msg.sender, msg.content, msg.timestamp, isSelf);
+                        } catch (e) {
+                            console.error("Failed to parse JSON message frame:", e);
+                        }
+                    }
+                    boundary = buffer.indexOf('\n');
+                }
+            }
+        } catch (err) {
+            console.error("Error reading stream:", err);
+        }
+      }
+
+      // Send Message to Stream
+      async function sendMessage(event) {
+        event.preventDefault();
+        const text = messageInput.value.trim();
+        if (!text || !streamWriter) return;
+
+        const payload = {
+            sender: "Browser",
+            content: text,
+            timestamp: new Date().toISOString()
+        };
+
+        try {
+            const encoder = new TextEncoder();
+            const dataBytes = encoder.encode(JSON.stringify(payload) + "\n");
+            await streamWriter.write(dataBytes);
+            
+            messageInput.value = "";
+            messageInput.focus();
+        } catch (err) {
+            console.error("Error sending message:", err);
+            appendSystemMessage(`Send error: ${err}`);
+        }
+      }
+
+      // Connect on page load
+      connectWebTransport();
+    </script>
+</body>
+</html>
