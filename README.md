@@ -1,6 +1,6 @@
-# MDServe 🚀
+# MDServe
 
-**MDServe** is a lightweight, high-performance developer preview tool written in Go. It serves local directories of Markdown files with a beautiful interface, GFM styling, Mermaid diagram support, syntax highlighting, and instant live reloading.
+MDServe is a developer preview tool written in Go for serving local directories of Markdown files. It supports GitHub Flavored Markdown (GFM) styling, Mermaid diagram rendering, syntax highlighting, and live reloading.
 
 ![MDServe Screenshot](screenshot.png)
 
@@ -8,13 +8,13 @@
 
 ## Features
 
-- 📁 **Seamless Directory Serving**: Serves any local folder recursively. Automatically renders `README.md` / `index.md` inside directories, or generates a clean file-explorer index.
-- 🎨 **GitHub Pages Look & Feel**: Uses styling inspired by GitHub Pages.
-- 📊 **Mermaid Diagrams**: Native support for rendering graphical diagrams (`flowchart`, `sequenceDiagram`, `gantt`, etc.) from standard Markdown code blocks.
-- ⚡ **Live Reloading**: Instant browser refresh via Server-Sent Events (SSE) when any `.md` file or local image/style changes. No plugin required!
-- 🔍 **File Search & Explorer**: An interactive, collapsible sidebar file explorer with real-time fuzzy filter search.
-- 🌓 **Sleek Light/Dark Mode**: Smooth transition between light and dark themes that updates the markdown container, sidebar, code highlighting, and Mermaid graphs.
-- 🔗 **Extensionless Clean URLs**: Clean route mapping (e.g. `/docs/install` translates automatically to `/docs/install.md`).
+- 📁 **Directory Serving**: Serves local folders recursively. Automatically renders `README.md` or `index.md` inside directories, or generates a file explorer index.
+- 🎨 **GFM Styling**: Renders Markdown with styling inspired by GitHub Pages.
+- 📊 **Mermaid Diagrams**: Renders diagrams (such as flowcharts and sequence diagrams) from standard Markdown code blocks.
+- ⚡ **Live Reloading**: Refreshes the browser via Server-Sent Events (SSE) when a `.md` file or asset changes.
+- 🔍 **File Search & Explorer**: Includes a sidebar file tree with search filtering.
+- 🌓 **Light/Dark Mode**: Supports light and dark themes for the page layout, code syntax highlighting, and Mermaid diagrams.
+- 🔗 **Clean URLs**: Maps clean URLs (e.g., `/docs/install` maps to `/docs/install.md`).
 
 ---
 
@@ -32,12 +32,12 @@ Run the server pointing to a directory (defaults to current directory `.`):
 ```
 
 ### 3. Open in Browser
-Visit [http://localhost:8080](http://localhost:8080) to view your rendered documentation.
+Visit [http://localhost:8080](http://localhost:8080) to view the rendered documentation.
 
 ---
 
 ## Installation to User Bin (`~/bin`)
-If you want to keep the devtool globally accessible in your shell:
+To make the tool globally accessible:
 ```bash
 mkdir -p ~/bin
 go build -o ~/bin/mdserve main.go
@@ -48,7 +48,7 @@ Ensure `~/bin` is in your `PATH` environment variable.
 
 ## Directory Layout Example
 
-To see nesting and folder routing in action, expand the **docs** folder in the sidebar on the left or browse these test files:
+Browse these test files to see nesting and folder routing in action:
 - [Installation Guide](docs/installation.md)
 - [GFM Tables & Tasklists](docs/tables.md)
 - [Mermaid Diagrams Preview](docs/diagrams.md)
