@@ -23,18 +23,24 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	htmlrenderer "github.com/yuin/goldmark/renderer/html"
+	"mdserve/wtserver"
 )
 
 //go:embed templates/main.html
 var mainTemplateRaw string
 
+//go:embed templates/chat.html
+var chatTemplateRaw string
+
 //go:embed third_party/*
 var thirdPartyFS embed.FS
 
 var mainTemplate *template.Template
+var chatTemplate *template.Template
 
 func init() {
 	mainTemplate = template.Must(template.New("main").Parse(mainTemplateRaw))
+	chatTemplate = template.Must(template.New("chat").Parse(chatTemplateRaw))
 }
 
 // Hub maintains the set of active SSE clients and broadcasts file-change notifications.
@@ -333,12 +339,19 @@ func makeBreadcrumbs(relPath string) []Breadcrumb {
 func main() {
 	port := flag.Int("port", 8080, "Port to run server on")
 	dirFlag := flag.String("dir", ".", "Directory of Markdown files to serve")
+	wtPortFlag := flag.Int("wtport", 8043, "UDP Port for WebTransport (QUIC)")
 	flag.Parse()
 
 	// Resolve absolute path of directory to serve
 	targetDir, err := filepath.Abs(*dirFlag)
 	if err != nil {
 		log.Fatalf("Error resolving path: %v", err)
+	}
+
+	// Start WebTransport QUIC chat server
+	wtUDPAddr := fmt.Sprintf(":%d", *wtPortFlag)
+	if err := wtserver.InitAndStartServer(wtUDPAddr); err != nil {
+		log.Printf("[MAIN] Warning: Failed to initialize WebTransport server: %v", err)
 	}
 
 	log.Printf("Starting Markdown Server in: %s", targetDir)
@@ -376,6 +389,21 @@ func main() {
 		log.Fatalf("Error creating sub-filesystem for third_party: %v", err)
 	}
 	http.Handle("/third_party/", http.StripPrefix("/third_party/", http.FileServer(http.FS(subFS))))
+
+	http.HandleFunc("/chat", func(w http.ResponseWriter, r *http.Request) {
+		data := struct {
+			CertHash string
+			WTPort   int
+		}{
+			CertHash: wtserver.GetCertHash(),
+			WTPort:   *wtPortFlag,
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := chatTemplate.Execute(w, data); err != nil {
+			log.Printf("Error rendering chat template: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		urlPath := r.URL.Path
