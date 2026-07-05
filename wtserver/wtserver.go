@@ -3,8 +3,9 @@ package wtserver
 import (
 	"bufio"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
@@ -223,7 +224,7 @@ func InitAndStartServer(udpAddr string) error {
 
 // generateSelfSignedCert generates an in-memory self-signed certificate valid for 10 days.
 func generateSelfSignedCert() (tls.Certificate, [32]byte, error) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return tls.Certificate{}, [32]byte{}, err
 	}
