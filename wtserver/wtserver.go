@@ -11,7 +11,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -57,33 +56,44 @@ func (sr *StreamRegistry) Remove(id string) {
 	delete(sr.streams, id)
 }
 
-// Broadcast serializes and sends a message to all connected bidirectional streams.
-func (sr *StreamRegistry) Broadcast(sender, content string) {
-	msg := ChatMessage{
-		Sender:    sender,
-		Content:   content,
-		Timestamp: time.Now().Format(time.RFC3339),
+// Hooks for message routing (implemented by wtserver/bridge.go)
+var (
+	OnMessage    func(streamID string, data []byte)
+	OnDisconnect func(streamID string)
+)
+
+// SendToStream writes raw bytes to a specific stream.
+func SendToStream(streamID string, data []byte) error {
+	if registry == nil {
+		return fmt.Errorf("server registry not initialized")
+	}
+	registry.mu.Lock()
+	stream, exists := registry.streams[streamID]
+	registry.mu.Unlock()
+	if !exists {
+		return fmt.Errorf("stream %s not found", streamID)
 	}
 
-	payload, err := json.Marshal(msg)
-	if err != nil {
-		log.Printf("[WTSERVER] Error marshaling message: %v", err)
+	if len(data) > 0 && data[len(data)-1] != '\n' {
+		data = append(data, '\n')
+	}
+	_, err := stream.Write(data)
+	return err
+}
+
+// BroadcastRaw sends raw bytes to all connected streams.
+func BroadcastRaw(data []byte) {
+	if registry == nil {
 		return
 	}
-	payload = append(payload, '\n') // Newline delimiter for framing
-
-	sr.mu.Lock()
-	defer sr.mu.Unlock()
-	log.Printf("[WTSERVER] Broadcasting message from '%s' to %d streams...", sender, len(sr.streams))
-	for id, stream := range sr.streams {
+	if len(data) > 0 && data[len(data)-1] != '\n' {
+		data = append(data, '\n')
+	}
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+	for id, stream := range registry.streams {
 		go func(sID string, s *webtransport.Stream) {
-			_, err := s.Write(payload)
-			if err != nil {
-				log.Printf("[WTSERVER] Error writing to stream %s: %v", sID, err)
-				// Clean up broken stream asynchronously
-				sr.Remove(sID)
-				s.Close()
-			}
+			s.Write(data)
 		}(id, stream)
 	}
 }
@@ -143,6 +153,9 @@ func handleBidirectionalStream(session *webtransport.Session, stream *webtranspo
 	defer func() {
 		log.Printf("[WTSERVER] Bidirectional stream closed: %s", streamID)
 		registry.Remove(streamID)
+		if OnDisconnect != nil {
+			OnDisconnect(streamID)
+		}
 		stream.Close()
 	}()
 
@@ -159,14 +172,9 @@ func handleBidirectionalStream(session *webtransport.Session, stream *webtranspo
 			continue
 		}
 
-		var msg ChatMessage
-		if err := json.Unmarshal([]byte(line), &msg); err != nil {
-			log.Printf("[WTSERVER] Error unmarshaling client message: %v", err)
-			continue
+		if OnMessage != nil {
+			OnMessage(streamID, []byte(line))
 		}
-
-		// Broadcast message to all active streams
-		registry.Broadcast(msg.Sender, msg.Content)
 	}
 }
 

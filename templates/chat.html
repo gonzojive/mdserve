@@ -213,12 +213,55 @@
         color: var(--text-secondary);
       }
 
-      /* Main Chat Panel */
-      .chat-panel {
+      /* Workspace Main Panel */
+      .workspace-main {
         flex: 1;
         display: flex;
         flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      /* Diagram Panel */
+      .diagram-panel {
+        height: 50%;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
         background: var(--bg-primary);
+        overflow: hidden;
+      }
+
+      .panel-header {
+        padding: 10px 16px;
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-color);
+        font-family: 'Outfit', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        flex-shrink: 0;
+      }
+
+      .diagram-viewport {
+        flex: 1;
+        padding: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: auto;
+        background: var(--bg-primary);
+      }
+
+      /* Main Chat Panel (Lower 50%) */
+      .chat-panel {
+        height: 50%;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-primary);
+        overflow: hidden;
       }
 
       /* Chat Messages Scroll Window */
@@ -499,25 +542,36 @@
             </div>
         </aside>
 
-        <!-- Chat Workspace -->
-        <main class="chat-panel">
-            <!-- Messages window -->
-            <div class="chat-messages" id="chat-messages-container">
-                <div class="message-system">
-                    Initiating WebTransport connection to localhost:{{.WTPort}} over HTTP/3 QUIC...
+        <!-- Workspace Harness -->
+        <main class="workspace-main">
+            <!-- Top half: Diagram Panel -->
+            <section class="diagram-panel">
+                <div class="panel-header">Active Widget: Mermaid Diagram</div>
+                <div class="diagram-viewport" id="mermaid-harness-container">
+                    <div style="color: var(--text-secondary); font-style: italic;">No diagram rendered yet. Connect an agent to draw!</div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Input area -->
-            <div class="chat-footer">
-                <form class="input-container" id="chat-form" onsubmit="sendMessage(event)">
-                    <input type="text" class="chat-input" id="message-input" placeholder="Type a message..." autocomplete="off" disabled>
-                    <button type="submit" class="send-btn" id="send-button" disabled>
-                        <span>Send</span>
-                        <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                    </button>
-                </form>
-            </div>
+            <!-- Bottom half: Chat/Console Panel -->
+            <section class="chat-panel">
+                <!-- Messages window -->
+                <div class="chat-messages" id="chat-messages-container">
+                    <div class="message-system">
+                        Initiating WebTransport connection to localhost:{{.WTPort}} over HTTP/3 QUIC...
+                    </div>
+                </div>
+
+                <!-- Input area -->
+                <div class="chat-footer">
+                    <form class="input-container" id="chat-form" onsubmit="sendMessage(event)">
+                        <input type="text" class="chat-input" id="message-input" placeholder="Type a message..." autocomplete="off" disabled>
+                        <button type="submit" class="send-btn" id="send-button" disabled>
+                            <span>Send</span>
+                            <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                        </button>
+                    </form>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -555,6 +609,52 @@
         const currentMode = document.documentElement.getAttribute('data-color-mode');
         setTheme(currentMode === 'dark' ? 'light' : 'dark');
       });
+
+      // Active Diagram Harness
+      let currentDiagramCode = `graph TD\n  Start[Start Node] --> Action[Agent Action]\n  Action --> Render[Mermaid Rendered]`;
+
+      async function renderMermaid() {
+        const container = document.getElementById('mermaid-harness-container');
+        if (!container) return;
+        try {
+            const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark';
+            
+            // Clear prior SVG temp elements
+            container.innerHTML = "";
+            
+            // Initialize with correct theme
+            window.mermaid.initialize({
+                startOnLoad: false,
+                theme: isDark ? 'dark' : 'default',
+                securityLevel: 'loose'
+            });
+
+            const tempId = 'mermaid-temp-' + Math.floor(Math.random() * 100000);
+            const { svg } = await window.mermaid.render(tempId, currentDiagramCode);
+            container.innerHTML = svg;
+        } catch (err) {
+            console.error("Mermaid Render Error:", err);
+            container.innerHTML = `<div style="color: #f85149; font-weight: 500; font-size: 13px; border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; background: var(--bg-secondary); width: 100%; max-width: 600px;">
+                <div>⚠️ Render Error:</div>
+                <pre style="margin-top: 8px; font-family: monospace; font-size: 11px; color: var(--text-secondary); word-break: break-all; white-space: pre-wrap;">${err.message || err}</pre>
+            </div>`;
+        }
+      }
+
+      function setTheme(mode) {
+        document.documentElement.setAttribute('data-color-mode', mode);
+        localStorage.setItem('theme', mode);
+        if (mode === 'dark') {
+          themeSunIcon.style.display = 'block';
+          themeMoonIcon.style.display = 'none';
+        } else {
+          themeSunIcon.style.display = 'none';
+          themeMoonIcon.style.display = 'block';
+        }
+        if (window.mermaid) {
+          renderMermaid();
+        }
+      }
 
       // WebTransport connection elements
       let transport = null;
@@ -656,6 +756,16 @@
             bidirStream = await transport.createBidirectionalStream();
             streamWriter = bidirStream.writable.getWriter();
             
+            // Register this client as a browser on the WebTransport bridge
+            const regPayload = {
+                type: "register",
+                client_type: "browser"
+            };
+            await streamWriter.write(new TextEncoder().encode(JSON.stringify(regPayload) + "\n"));
+            
+            // Render initial default diagram
+            renderMermaid();
+
             // Enable UI
             messageInput.disabled = false;
             sendButton.disabled = false;
@@ -710,9 +820,13 @@
                     if (line !== "") {
                         try {
                             const msg = JSON.parse(line);
-                            // Avoid duplicating messages we sent since we are also in the broadcast list
-                            const isSelf = (msg.sender === "Browser");
-                            appendChatMessage(msg.sender, msg.content, msg.timestamp, isSelf);
+                            if (msg.type === "tool_request") {
+                                handleToolRequest(msg);
+                            } else {
+                                // Avoid duplicating messages we sent since we are also in the broadcast list
+                                const isSelf = (msg.sender === "Browser");
+                                appendChatMessage(msg.sender, msg.content, msg.timestamp, isSelf);
+                            }
                         } catch (e) {
                             console.error("Failed to parse JSON message frame:", e);
                         }
@@ -770,6 +884,72 @@
             }, 2000);
         } catch (err) {
             console.error("Clipboard copy failed:", err);
+        }
+      }
+
+      // Handle MCP Tool Request in Browser
+      async function handleToolRequest(req) {
+        appendSystemMessage(`[HARNESS] Executing tool request: ${req.tool} (id: ${req.id})`);
+        
+        let success = true;
+        let result = "";
+        let error = "";
+        
+        try {
+            switch (req.tool) {
+                case "get_diagram":
+                    result = currentDiagramCode;
+                    break;
+                    
+                case "update_diagram":
+                    currentDiagramCode = req.payload.code;
+                    await renderMermaid();
+                    result = "Diagram updated successfully.";
+                    break;
+                    
+                case "add_node":
+                    const { id, label, edgeTo } = req.payload;
+                    currentDiagramCode += `\n  ${id}["${label}"]`;
+                    if (edgeTo) {
+                        currentDiagramCode += `\n  ${edgeTo} --> ${id}`;
+                    }
+                    await renderMermaid();
+                    result = `Node '${id}' added successfully.`;
+                    break;
+                    
+                case "set_theme":
+                    const theme = req.payload.theme;
+                    setTheme(theme);
+                    result = `Theme updated to ${theme} successfully.`;
+                    break;
+                    
+                default:
+                    success = false;
+                    error = `Unknown tool: ${req.tool}`;
+            }
+        } catch (err) {
+            success = false;
+            error = err.message || err.toString();
+        }
+        
+        // Send response back over the WebTransport stream
+        const responseEnvelope = {
+            type: "tool_response",
+            id: req.id,
+            payload: {
+                success: success,
+                result: result,
+                error: error
+            }
+        };
+        
+        try {
+            if (streamWriter) {
+                await streamWriter.write(new TextEncoder().encode(JSON.stringify(responseEnvelope) + "\n"));
+                appendSystemMessage(`[HARNESS] Sent response for: ${req.tool}`);
+            }
+        } catch (err) {
+            console.error("Failed to send tool response:", err);
         }
       }
 
