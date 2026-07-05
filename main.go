@@ -2,11 +2,12 @@ package main
 
 import (
 	"bytes"
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -26,6 +27,9 @@ import (
 
 //go:embed templates/main.html
 var mainTemplateRaw string
+
+//go:embed third_party/*
+var thirdPartyFS embed.FS
 
 var mainTemplate *template.Template
 
@@ -367,6 +371,11 @@ func main() {
 
 	// HTTP Handler
 	http.HandleFunc("/events", hub.serveSSE)
+	subFS, err := fs.Sub(thirdPartyFS, "third_party")
+	if err != nil {
+		log.Fatalf("Error creating sub-filesystem for third_party: %v", err)
+	}
+	http.Handle("/third_party/", http.StripPrefix("/third_party/", http.FileServer(http.FS(subFS))))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		urlPath := r.URL.Path
