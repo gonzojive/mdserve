@@ -1,6 +1,8 @@
 # Binaries
-mdserve
-mdserve.exe
+/mdserve
+/mdserve.exe
+/devtool
+/devtool.exe
 
 # Editor temp files
 *.swp
