@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -370,7 +371,11 @@ func main() {
 
 	// HTTP Handler
 	http.HandleFunc("/events", hub.serveSSE)
-	http.Handle("/third_party/", http.StripPrefix("/third_party/", http.FileServer(http.FS(thirdPartyFS))))
+	subFS, err := fs.Sub(thirdPartyFS, "third_party")
+	if err != nil {
+		log.Fatalf("Error creating sub-filesystem for third_party: %v", err)
+	}
+	http.Handle("/third_party/", http.StripPrefix("/third_party/", http.FileServer(http.FS(subFS))))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		urlPath := r.URL.Path
