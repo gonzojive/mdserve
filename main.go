@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -26,6 +26,9 @@ import (
 
 //go:embed templates/main.html
 var mainTemplateRaw string
+
+//go:embed third_party/*
+var thirdPartyFS embed.FS
 
 var mainTemplate *template.Template
 
@@ -367,6 +370,7 @@ func main() {
 
 	// HTTP Handler
 	http.HandleFunc("/events", hub.serveSSE)
+	http.Handle("/third_party/", http.StripPrefix("/third_party/", http.FileServer(http.FS(thirdPartyFS))))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		urlPath := r.URL.Path
