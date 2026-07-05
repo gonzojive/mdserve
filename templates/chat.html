@@ -387,6 +387,49 @@
       .back-to-docs:hover {
         color: var(--color-accent);
       }
+
+      .code-copy-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--bg-primary);
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        font-family: monospace;
+        font-size: 11px;
+        gap: 8px;
+        margin-top: 4px;
+        width: 100%;
+      }
+
+      .code-copy-container code {
+        font-family: 'JetBrains Mono', monospace;
+        background: none;
+        border: none;
+        padding: 0;
+        color: var(--text-primary);
+        word-break: break-all;
+      }
+
+      .copy-code-btn {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s, color 0.2s;
+        flex-shrink: 0;
+      }
+
+      .copy-code-btn:hover {
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+      }
     </style>
 </head>
 <body>
@@ -437,9 +480,21 @@
                 <div class="card-title">Developer Tool CLI</div>
                 <div style="font-size: 13px; line-height: 1.5; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px;">
                     <div>Send a message from the terminal:</div>
-                    <code style="background: var(--bg-primary); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border-color);">devtool chat -m "Hello!"</code>
+                    <div class="code-copy-container">
+                        <code id="cli-cmd-1">devtool chat -m "Hello!"</code>
+                        <button class="copy-code-btn" onclick="copyToClipboard('cli-cmd-1', this)" title="Copy to clipboard">
+                            <svg class="copy-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <svg class="check-icon" style="width: 14px; height: 14px; display: none; color: #2da44e;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </button>
+                    </div>
                     <div>Or join interactively:</div>
-                    <code style="background: var(--bg-primary); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border-color);">devtool chat</code>
+                    <div class="code-copy-container">
+                        <code id="cli-cmd-2">devtool chat</code>
+                        <button class="copy-code-btn" onclick="copyToClipboard('cli-cmd-2', this)" title="Copy to clipboard">
+                            <svg class="copy-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <svg class="check-icon" style="width: 14px; height: 14px; display: none; color: #2da44e;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </aside>
@@ -692,6 +747,29 @@
         } catch (err) {
             console.error("Error sending message:", err);
             appendSystemMessage(`Send error: ${err}`);
+        }
+      }
+
+      // Copy to Clipboard Helper
+      async function copyToClipboard(id, btn) {
+        const codeElement = document.getElementById(id);
+        if (!codeElement) return;
+        const text = codeElement.textContent;
+        try {
+            await navigator.clipboard.writeText(text);
+            
+            const copyIcon = btn.querySelector('.copy-icon');
+            const checkIcon = btn.querySelector('.check-icon');
+            
+            copyIcon.style.display = 'none';
+            checkIcon.style.display = 'block';
+            
+            setTimeout(() => {
+                copyIcon.style.display = 'block';
+                checkIcon.style.display = 'none';
+            }, 2000);
+        } catch (err) {
+            console.error("Clipboard copy failed:", err);
         }
       }
 
