@@ -49,9 +49,9 @@ Ensure `~/bin` is in your `PATH` environment variable.
 ## Directory Layout Example
 
 To see nesting and folder routing in action, expand the **docs** folder in the sidebar on the left or browse these test files:
-- [Installation Guide](/docs/installation)
-- [GFM Tables & Tasklists](/docs/tables)
-- [Mermaid Diagrams Preview](/docs/diagrams)
+- [Installation Guide](docs/installation.md)
+- [GFM Tables & Tasklists](docs/tables.md)
+- [Mermaid Diagrams Preview](docs/diagrams.md)
 
 ---
 

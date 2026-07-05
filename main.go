@@ -239,19 +239,17 @@ func buildFileTree(rootDir string) (*FileNode, error) {
 				Path:  relPath,
 				IsDir: entry.IsDir(),
 			}
-
 			if entry.IsDir() {
 				children, err := walk(fullPath)
-				if err == nil {
+				if err == nil && len(children) > 0 {
 					node.Children = children
+					nodes = append(nodes, node)
 				}
 			} else {
-				// Only include Markdown files in the tree navigation
-				if strings.ToLower(filepath.Ext(name)) != ".md" {
-					continue
+				if strings.ToLower(filepath.Ext(name)) == ".md" {
+					nodes = append(nodes, node)
 				}
 			}
-			nodes = append(nodes, node)
 		}
 
 		// Sort: folders first, then files alphabetically
@@ -1282,12 +1280,7 @@ var mainTemplate = template.Must(template.New("main").Parse(`<!DOCTYPE html>
              renderTree(node.children, subContainer, node.path);
 
              // Handle collapse / expand logic
-             const isParentOfCurrent = currentPath.startsWith(node.path + '/') || currentPath === node.path;
-             if (isParentOfCurrent) {
-                subContainer.classList.add('expanded');
-             } else {
-                arrow.classList.add('collapsed');
-             }
+             subContainer.classList.add('expanded');
 
              const toggleDir = () => {
                 const isExpanded = subContainer.classList.toggle('expanded');
@@ -1329,15 +1322,8 @@ var mainTemplate = template.Must(template.New("main").Parse(`<!DOCTYPE html>
               const children = node.querySelector('.tree-children');
               const arrow = node.querySelector('.tree-arrow');
               if (children && arrow) {
-                 const currentHref = node.querySelector('.tree-item').getAttribute('href');
-                 const hasActiveChild = currentPath.startsWith(currentHref + '/');
-                 if (hasActiveChild || currentPath === currentHref) {
-                    children.classList.add('expanded');
-                    arrow.classList.remove('collapsed');
-                 } else {
-                    children.classList.remove('expanded');
-                    arrow.classList.add('collapsed');
-                 }
+                 children.classList.add('expanded');
+                 arrow.classList.remove('collapsed');
               }
            });
            return;
