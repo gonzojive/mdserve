@@ -11,11 +11,13 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
 	"log"
 	"math/big"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -230,8 +232,74 @@ func InitAndStartServer(udpAddr string) error {
 	return nil
 }
 
-// generateSelfSignedCert generates an in-memory self-signed certificate valid for 10 days.
+const (
+	certDir  = ".certs"
+	certFile = ".certs/cert.pem"
+	keyFile  = ".certs/key.pem"
+)
+
+// generateSelfSignedCert returns a valid self-signed certificate, loading it from disk if available or creating one.
 func generateSelfSignedCert() (tls.Certificate, [32]byte, error) {
+	// Try loading from disk
+	if _, err := os.Stat(certFile); err == nil {
+		if _, err := os.Stat(keyFile); err == nil {
+			cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+			if err == nil && len(cert.Certificate) > 0 {
+				leaf, err := x509.ParseCertificate(cert.Certificate[0])
+				if err == nil {
+					// Ensure certificate has not expired and has at least 2 days of validity remaining.
+					// Also verify validity duration is < 14 days for WebTransport.
+					validityDuration := leaf.NotAfter.Sub(leaf.NotBefore)
+					if time.Now().Before(leaf.NotAfter.Add(-2 * 24 * time.Hour)) && validityDuration < 14*24*time.Hour {
+						hash := sha256.Sum256(cert.Certificate[0])
+						log.Printf("[WTSERVER] Loaded existing TLS Certificate from disk (%s)", certFile)
+						return cert, hash, nil
+					}
+					log.Println("[WTSERVER] Certificate on disk is expired, near expiration, or invalid validity range. Regenerating...")
+				}
+			}
+		}
+	}
+
+	// Generate a new one
+	cert, hash, err := generateNewCert()
+	if err != nil {
+		return tls.Certificate{}, [32]byte{}, err
+	}
+
+	// Save to disk
+	if err := os.MkdirAll(certDir, 0700); err == nil {
+		// Encode Cert
+		certBlock := &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Certificate[0],
+		}
+		certPEM := pem.EncodeToMemory(certBlock)
+
+		// Encode Key
+		privKey, ok := cert.PrivateKey.(*ecdsa.PrivateKey)
+		if ok {
+			keyBytes, err := x509.MarshalECPrivateKey(privKey)
+			if err == nil {
+				keyBlock := &pem.Block{
+					Type:  "EC PRIVATE KEY",
+					Bytes: keyBytes,
+				}
+				keyPEM := pem.EncodeToMemory(keyBlock)
+
+				// Write files
+				_ = os.WriteFile(certFile, certPEM, 0600)
+				_ = os.WriteFile(keyFile, keyPEM, 0600)
+				log.Println("[WTSERVER] Generated and saved new TLS Certificate to disk")
+			}
+		}
+	}
+
+	return cert, hash, nil
+}
+
+// generateNewCert generates a raw in-memory ECDSA P-256 certificate.
+func generateNewCert() (tls.Certificate, [32]byte, error) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return tls.Certificate{}, [32]byte{}, err
