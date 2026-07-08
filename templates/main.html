@@ -137,6 +137,16 @@
         border-bottom: 1px solid var(--border-color);
       }
 
+      .sidebar-search:has(+ .sidebar-toggle-all) {
+        border-bottom: none;
+        padding-bottom: 6px;
+      }
+
+      .sidebar-toggle-all {
+        padding: 0 20px 12px 20px;
+        border-bottom: 1px solid var(--border-color);
+      }
+
       .search-input {
         width: 100%;
         padding: 8px 12px;
@@ -653,7 +663,7 @@
             <input type="text" id="search-box" class="search-input" placeholder="Search files...">
         </div>
         {{if .ShowAllFiles}}
-        <div class="sidebar-toggle-all" style="padding: 0 20px 12px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+        <div class="sidebar-toggle-all" style="display: flex; align-items: center; justify-content: space-between;">
             <label for="toggle-all-files" style="font-size: 12px; color: var(--text-secondary); cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px;">
                 <input type="checkbox" id="toggle-all-files" checked style="cursor: pointer;" />
                 <script>
