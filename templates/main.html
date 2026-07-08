@@ -72,7 +72,7 @@
         display: flex;
         flex-direction: column;
         z-index: 100;
-        transition: background-color 0.3s ease, border-color 0.3s ease;
+        transition: transform 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
       }
 
       .sidebar-header {
@@ -305,12 +305,23 @@
         flex-direction: column;
         align-items: center;
         box-sizing: border-box;
+        transition: margin-left 0.3s ease, margin-right 0.3s ease;
       }
 
       .main-content {
         width: 100%;
         max-width: 860px;
         box-sizing: border-box;
+        transition: max-width 0.3s ease;
+      }
+
+      body.sidebar-collapsed .main-content,
+      body.toc-collapsed .main-content {
+        max-width: 1200px;
+      }
+
+      body.sidebar-collapsed.toc-collapsed .main-content {
+        max-width: 100%;
       }
 
       /* Breadcrumbs */
@@ -350,7 +361,68 @@
         overflow-y: auto;
         box-sizing: border-box;
         background-color: var(--bg-primary);
-        transition: background-color 0.3s ease, border-color 0.3s ease;
+        transition: transform 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+      }
+
+      /* Sidebar/TOC Collapsing */
+      body.sidebar-collapsed .sidebar {
+        transform: translateX(-100%);
+      }
+
+      body.sidebar-collapsed .main-wrapper {
+        margin-left: 0;
+      }
+
+      body.toc-collapsed .toc-sidebar {
+        transform: translateX(100%);
+      }
+
+      body.toc-collapsed .main-wrapper {
+        margin-right: 0;
+      }
+
+      body.toc-collapsed .back-to-top {
+        right: 24px;
+      }
+
+      /* Collapse Toggle Buttons */
+      .collapse-toggle {
+        position: fixed;
+        top: 12px;
+        z-index: 200;
+        background-color: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--text-secondary);
+        box-shadow: var(--shadow-sm);
+        transition: left 0.3s ease, right 0.3s ease, background-color 0.2s, color 0.2s;
+      }
+
+      .collapse-toggle:hover {
+        background-color: var(--hover-bg);
+        color: var(--text-primary);
+      }
+
+      .toggle-lhs {
+        left: calc(var(--sidebar-width) + 12px);
+      }
+
+      body.sidebar-collapsed .toggle-lhs {
+        left: 12px;
+      }
+
+      .toggle-rhs {
+        right: calc(var(--toc-width) + 12px);
+      }
+
+      body.toc-collapsed .toggle-rhs {
+        right: 12px;
       }
 
       .toc-title {
@@ -506,6 +578,9 @@
         .toc-sidebar {
           display: none;
         }
+        .toggle-rhs {
+          display: none;
+        }
         .main-wrapper {
           margin-right: 0;
           padding: 24px;
@@ -526,6 +601,9 @@
           border-right: none;
           border-bottom: 1px solid var(--border-color);
         }
+        .toggle-lhs {
+          display: none;
+        }
         .sidebar-content {
           max-height: 250px;
         }
@@ -537,6 +615,18 @@
     </style>
 </head>
 <body>
+
+    <!-- Sidebar / TOC Toggle Buttons -->
+    <button class="collapse-toggle toggle-lhs" id="toggle-lhs" title="Toggle Sidebar">
+        <!-- Double arrow left/right -->
+        <svg id="lhs-open-icon" style="width: 16px; height: 16px; display: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
+        <svg id="lhs-close-icon" style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
+    </button>
+    <button class="collapse-toggle toggle-rhs" id="toggle-rhs" title="Toggle TOC">
+        <!-- Double arrow right/left -->
+        <svg id="rhs-open-icon" style="width: 16px; height: 16px; display: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
+        <svg id="rhs-close-icon" style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
+    </button>
 
     <!-- Sidebar Explorer -->
     <aside class="sidebar">
@@ -917,6 +1007,57 @@
          };
       }
       
+      // Sidebar and TOC Collapse Handling
+      const toggleLhsBtn = document.getElementById('toggle-lhs');
+      const lhsOpenIcon = document.getElementById('lhs-open-icon');
+      const lhsCloseIcon = document.getElementById('lhs-close-icon');
+
+      if (toggleLhsBtn) {
+         toggleLhsBtn.addEventListener('click', () => {
+            const collapsed = document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('sidebar-collapsed', collapsed);
+            if (collapsed) {
+               lhsOpenIcon.style.display = 'block';
+               lhsCloseIcon.style.display = 'none';
+            } else {
+               lhsOpenIcon.style.display = 'none';
+               lhsCloseIcon.style.display = 'block';
+            }
+         });
+         
+         // Restore state
+         if (localStorage.getItem('sidebar-collapsed') === 'true') {
+            document.body.classList.add('sidebar-collapsed');
+            lhsOpenIcon.style.display = 'block';
+            lhsCloseIcon.style.display = 'none';
+         }
+      }
+
+      const toggleRhsBtn = document.getElementById('toggle-rhs');
+      const rhsOpenIcon = document.getElementById('rhs-open-icon');
+      const rhsCloseIcon = document.getElementById('rhs-close-icon');
+
+      if (toggleRhsBtn) {
+         toggleRhsBtn.addEventListener('click', () => {
+            const collapsed = document.body.classList.toggle('toc-collapsed');
+            localStorage.setItem('toc-collapsed', collapsed);
+            if (collapsed) {
+               rhsOpenIcon.style.display = 'block';
+               rhsCloseIcon.style.display = 'none';
+            } else {
+               rhsOpenIcon.style.display = 'none';
+               rhsCloseIcon.style.display = 'block';
+            }
+         });
+         
+         // Restore state
+         if (localStorage.getItem('toc-collapsed') === 'true') {
+            document.body.classList.add('toc-collapsed');
+            rhsOpenIcon.style.display = 'block';
+            rhsCloseIcon.style.display = 'none';
+         }
+      }
+
       connectSSE();
     </script>
 </body>
