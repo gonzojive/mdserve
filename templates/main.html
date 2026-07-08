@@ -652,6 +652,21 @@
         <div class="sidebar-search">
             <input type="text" id="search-box" class="search-input" placeholder="Search files...">
         </div>
+        {{if .ShowAllFiles}}
+        <div class="sidebar-toggle-all" style="padding: 0 20px 12px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+            <label for="toggle-all-files" style="font-size: 12px; color: var(--text-secondary); cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="toggle-all-files" checked style="cursor: pointer;" />
+                <script>
+                   (function() {
+                      if (localStorage.getItem('show-all-files-preference') === 'false') {
+                         document.getElementById('toggle-all-files').checked = false;
+                      }
+                   })();
+                </script>
+                <span>Show all files</span>
+            </label>
+        </div>
+        {{end}}
         <div class="sidebar-content">
             <ul class="file-tree" id="file-tree-root"></ul>
         </div>
@@ -907,11 +922,24 @@
       searchBox.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase().trim();
         const treeItems = fileTreeRoot.querySelectorAll('.tree-node');
+        const toggleAll = document.getElementById('toggle-all-files');
+        const showAll = toggleAll ? toggleAll.checked : true;
 
         if (query === '') {
            // Reset tree view back to normal
            treeItems.forEach(node => {
-              node.style.display = '';
+              const itemLink = node.querySelector('.tree-item');
+              if (itemLink) {
+                 const path = itemLink.getAttribute('href');
+                 const isMD = path && path.endsWith('.md');
+                 const isDir = node.querySelector('.tree-children') !== null;
+                 
+                 if (showAll || isMD || isDir) {
+                    node.style.display = '';
+                 } else {
+                    node.style.display = 'none';
+                 }
+              }
               const children = node.querySelector('.tree-children');
               const arrow = node.querySelector('.tree-arrow');
               if (children && arrow) {
@@ -919,6 +947,10 @@
                  arrow.classList.remove('collapsed');
               }
            });
+           
+           if (!showAll) {
+              hideEmptyDirectories(fileTreeRoot);
+           }
            return;
         }
 
@@ -949,15 +981,26 @@
            }
         };
 
-        const showDescendants = (node) => {
+        const showDescendants = (node, showAllFiles) => {
            const descendants = node.querySelectorAll('.tree-node');
            descendants.forEach(desc => {
-              desc.style.display = '';
-              const children = desc.querySelector('.tree-children');
-              const arrow = desc.querySelector('.tree-arrow');
-              if (children && arrow) {
-                 children.classList.add('expanded');
-                 arrow.classList.remove('collapsed');
+              const itemLink = desc.querySelector('.tree-item');
+              if (itemLink) {
+                 const path = itemLink.getAttribute('href');
+                 const isMD = path && path.endsWith('.md');
+                 const isDir = desc.querySelector('.tree-children') !== null;
+                 
+                 if (showAllFiles || isMD || isDir) {
+                    desc.style.display = '';
+                    const children = desc.querySelector('.tree-children');
+                    const arrow = desc.querySelector('.tree-arrow');
+                    if (children && arrow) {
+                       children.classList.add('expanded');
+                       arrow.classList.remove('collapsed');
+                    }
+                 } else {
+                    desc.style.display = 'none';
+                 }
               }
            });
         };
@@ -970,16 +1013,93 @@
            const match = itemName.includes(query);
            
            if (match) {
-              showNodeAndParents(node);
+              const path = itemLink.getAttribute('href');
+              const isMD = path && path.endsWith('.md');
+              const isDir = node.querySelector('.tree-children') !== null;
               
-              // If this is a directory, show all of its descendants
-              const subContainer = node.querySelector('.tree-children');
-              if (subContainer) {
-                 showDescendants(node);
+              if (showAll || isMD || isDir) {
+                 showNodeAndParents(node);
+                 
+                 // If this is a directory, show all of its descendants
+                 const subContainer = node.querySelector('.tree-children');
+                 if (subContainer) {
+                    showDescendants(node, showAll);
+                 }
               }
            }
         });
+        
+        if (!showAll) {
+           hideEmptyDirectories(fileTreeRoot);
+        }
       });
+
+      // Helper function to recursively hide empty directories in the explorer sidebar
+      function hideEmptyDirectories(container) {
+         let hasVisibleChildren = false;
+         const directChildren = Array.from(container.children);
+         directChildren.forEach(li => {
+            const subTree = li.querySelector('.tree-children');
+            const isDir = subTree !== null;
+            
+            if (isDir) {
+               const subHasVisible = hideEmptyDirectories(subTree);
+               if (!subHasVisible) {
+                  li.style.display = 'none';
+               } else {
+                  li.style.display = '';
+                  hasVisibleChildren = true;
+               }
+            } else {
+               if (li.style.display !== 'none') {
+                  hasVisibleChildren = true;
+               }
+            }
+         });
+         return hasVisibleChildren;
+      }
+
+      // Sidebar All Files Toggle Handling
+      const toggleAll = document.getElementById('toggle-all-files');
+      if (toggleAll) {
+         toggleAll.addEventListener('change', () => {
+            const showAll = toggleAll.checked;
+            localStorage.setItem('show-all-files-preference', showAll);
+            
+            const nodes = fileTreeRoot.querySelectorAll('.tree-node');
+            nodes.forEach(node => {
+               const itemLink = node.querySelector('.tree-item');
+               if (itemLink) {
+                  const path = itemLink.getAttribute('href');
+                  const isMD = path && path.endsWith('.md');
+                  const isDir = node.querySelector('.tree-children') !== null;
+                  
+                  if (!showAll && !isMD && !isDir) {
+                     node.style.display = 'none';
+                  } else {
+                     node.style.display = '';
+                  }
+               }
+            });
+            
+            if (!showAll) {
+               hideEmptyDirectories(fileTreeRoot);
+            } else {
+               // Restore all directories to visible
+               nodes.forEach(node => {
+                  const isDir = node.querySelector('.tree-children') !== null;
+                  if (isDir) node.style.display = '';
+               });
+            }
+         });
+         
+         // Restore preference on load
+         const savedPref = localStorage.getItem('show-all-files-preference');
+         if (savedPref === 'false') {
+            toggleAll.checked = false;
+            toggleAll.dispatchEvent(new Event('change'));
+         }
+      }
 
       // Extract Headings for TOC & ScrollSpy
       const markdownBody = document.querySelector('.markdown-body');
