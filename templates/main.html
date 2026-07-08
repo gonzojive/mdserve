@@ -573,6 +573,14 @@
         word-break: break-all;
       }
 
+      /* View Tabs Active Styling */
+      .view-tabs button.active {
+        background-color: var(--bg-primary) !important;
+        color: var(--accent-color) !important;
+        font-weight: 600 !important;
+        box-shadow: var(--shadow-sm);
+      }
+
       /* Responsive */
       @media (max-width: 1024px) {
         .toc-sidebar {
@@ -672,7 +680,7 @@
             {{if .IsDirView}}
                 <!-- Directory listing view -->
                 <h2 class="dir-title">Browsing: {{.Title}}</h2>
-                <p class="dir-description">Select a folder or a Markdown file to view its rendering.</p>
+                <p class="dir-description">Select a folder or a file to view its rendering.</p>
                 <div class="dir-grid">
                     {{range .DirItems}}
                         <a href="{{.Path}}" class="dir-card">
@@ -682,14 +690,72 @@
                                 <svg class="dir-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                             {{end}}
                             <div class="dir-card-name">{{.Name}}</div>
+                            {{if not .IsDir}}
+                                <div style="font-size: 11px; color: var(--text-secondary);">{{.Size}}</div>
+                            {{end}}
                         </a>
                     {{end}}
                 </div>
             {{else}}
-                <!-- Rendered Markdown view -->
-                <article class="markdown-body">
-                    {{.Content}}
-                </article>
+                <!-- File header (title, size, views tabs, copy button) -->
+                <div class="file-header" style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h2 style="font-family: var(--font-title); font-size: 20px; font-weight: 600; margin: 0;">{{.Title}}</h2>
+                        <span style="font-size: 12px; color: var(--text-secondary); background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 4px; font-weight: 500;">{{.FileSize}}</span>
+                    </div>
+                    
+                    <div class="file-actions" style="display: flex; align-items: center; gap: 12px;">
+                        {{if eq .FileType "markdown"}}
+                            <!-- Tabs for HTML / Raw Text view -->
+                            <div class="view-tabs" style="display: flex; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 2px; gap: 2px;">
+                                <button class="tab-btn active" id="btn-html-view" style="border: none; background: none; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 4px; cursor: pointer; color: var(--text-primary);">HTML</button>
+                                <button class="tab-btn" id="btn-raw-view" style="border: none; background: none; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 4px; cursor: pointer; color: var(--text-secondary);">Raw</button>
+                            </div>
+                        {{end}}
+                        
+                        {{if or (eq .FileType "markdown") (eq .FileType "text")}}
+                            <!-- Copy Raw Content Button -->
+                            <button class="theme-btn" id="btn-copy-raw" title="Copy raw content" style="display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 12px;">
+                                <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <span>Copy</span>
+                            </button>
+                        {{end}}
+                        
+                        <!-- Raw download link -->
+                        <a href="{{.CurrentPath}}?raw=true" class="theme-btn" style="text-decoration: none; display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 12px;" download>
+                            <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <span>Raw</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Main Render Preview Area -->
+                <div class="file-body" style="width: 100%;">
+                    {{if eq .FileType "markdown"}}
+                        <!-- HTML view wrapper -->
+                        <div id="html-view-wrapper">
+                            <article class="markdown-body">
+                                {{.Content}}
+                            </article>
+                        </div>
+                        <!-- Raw text view wrapper -->
+                        <div id="raw-view-wrapper" style="display: none;">
+                            <pre><code class="language-markdown" id="raw-content-block">{{.RawContent}}</code></pre>
+                        </div>
+                    {{else if eq .FileType "text"}}
+                        <div id="text-view-wrapper">
+                            {{.Content}}
+                        </div>
+                    {{else if eq .FileType "image"}}
+                        <div id="image-view-wrapper">
+                            {{.Content}}
+                        </div>
+                    {{else if eq .FileType "binary"}}
+                        <div id="binary-view-wrapper">
+                            {{.Content}}
+                        </div>
+                    {{end}}
+                </div>
             {{end}}
         </div>
     </main>
@@ -988,6 +1054,47 @@
          });
          backToTopBtn.addEventListener('click', () => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
+         });
+      }
+
+      // HTML vs Raw source view tabs for Markdown files
+      const btnHtml = document.getElementById('btn-html-view');
+      const btnRaw = document.getElementById('btn-raw-view');
+      const htmlWrapper = document.getElementById('html-view-wrapper');
+      const rawWrapper = document.getElementById('raw-view-wrapper');
+
+      if (btnHtml && btnRaw) {
+         btnHtml.addEventListener('click', () => {
+            btnHtml.classList.add('active');
+            btnRaw.classList.remove('active');
+            htmlWrapper.style.display = 'block';
+            rawWrapper.style.display = 'none';
+         });
+         btnRaw.addEventListener('click', () => {
+            btnRaw.classList.add('active');
+            btnHtml.classList.remove('active');
+            htmlWrapper.style.display = 'none';
+            rawWrapper.style.display = 'block';
+         });
+      }
+
+      // Copy raw text/markdown content to clipboard
+      const btnCopyRaw = document.getElementById('btn-copy-raw');
+      if (btnCopyRaw) {
+         btnCopyRaw.addEventListener('click', async () => {
+            const rawBlock = document.getElementById('raw-content-block') || document.getElementById('text-content-block');
+            if (!rawBlock) return;
+            const textToCopy = rawBlock.textContent;
+            try {
+               await navigator.clipboard.writeText(textToCopy);
+               const textSpan = btnCopyRaw.querySelector('span');
+               textSpan.textContent = 'Copied!';
+               setTimeout(() => {
+                  textSpan.textContent = 'Copy';
+               }, 2000);
+            } catch (err) {
+               console.error('Failed to copy raw content:', err);
+            }
          });
       }
 

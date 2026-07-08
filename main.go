@@ -37,6 +37,72 @@ func init() {
 	mainTemplate = template.Must(template.New("main").Parse(mainTemplateRaw))
 }
 
+// ShowAllFiles controls whether we show and serve all files in the directory.
+var ShowAllFiles bool
+
+// formatSize formats a byte count into a human-readable size string.
+func formatSize(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+// isBinary detects if content is binary by checking for null bytes in the first 1024 bytes.
+func isBinary(content []byte) bool {
+	limit := len(content)
+	if limit > 1024 {
+		limit = 1024
+	}
+	for i := 0; i < limit; i++ {
+		if content[i] == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// getLangClass maps file extensions to highlight.js language classes.
+func getLangClass(ext string) string {
+	ext = strings.ToLower(strings.TrimPrefix(ext, "."))
+	switch ext {
+	case "go":
+		return "go"
+	case "js", "jsx":
+		return "javascript"
+	case "ts", "tsx":
+		return "typescript"
+	case "css":
+		return "css"
+	case "html", "htm", "xml":
+		return "xml"
+	case "json":
+		return "json"
+	case "yaml", "yml":
+		return "yaml"
+	case "sh", "bash":
+		return "bash"
+	case "py":
+		return "python"
+	case "md":
+		return "markdown"
+	case "sql":
+		return "sql"
+	case "dockerfile":
+		return "dockerfile"
+	case "ini", "toml":
+		return "ini"
+	default:
+		return "plaintext"
+	}
+}
+
 // Hub maintains the set of active SSE clients and broadcasts file-change notifications.
 type Hub struct {
 	clients    map[chan string]bool
@@ -224,11 +290,13 @@ type FileNode struct {
 	Name     string      `json:"name"`
 	Path     string      `json:"path"`
 	IsDir    bool        `json:"isDir"`
+	Size     int64       `json:"size"`
+	SizeStr  string      `json:"sizeStr,omitempty"`
 	Children []*FileNode `json:"children,omitempty"`
 }
 
-// buildFileTree recursively crawls the target folder to construct a tree of directories and markdown files.
-func buildFileTree(rootDir string) (*FileNode, error) {
+// buildFileTree recursively crawls the target folder to construct a tree of directories and files.
+func buildFileTree(rootDir string, showAll bool) (*FileNode, error) {
 	var walk func(dir string) ([]*FileNode, error)
 	walk = func(dir string) ([]*FileNode, error) {
 		entries, err := os.ReadDir(dir)
@@ -248,10 +316,16 @@ func buildFileTree(rootDir string) (*FileNode, error) {
 			}
 			relPath = "/" + filepath.ToSlash(relPath)
 
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+
 			node := &FileNode{
 				Name:  name,
 				Path:  relPath,
 				IsDir: entry.IsDir(),
+				Size:  info.Size(),
 			}
 			if entry.IsDir() {
 				children, err := walk(fullPath)
@@ -260,7 +334,10 @@ func buildFileTree(rootDir string) (*FileNode, error) {
 					nodes = append(nodes, node)
 				}
 			} else {
-				if strings.ToLower(filepath.Ext(name)) == ".md" {
+				ext := strings.ToLower(filepath.Ext(name))
+				isMD := ext == ".md"
+				if showAll || isMD {
+					node.SizeStr = formatSize(info.Size())
 					nodes = append(nodes, node)
 				}
 			}
@@ -293,11 +370,15 @@ func buildFileTree(rootDir string) (*FileNode, error) {
 type PageData struct {
 	Title        string
 	Content      template.HTML
+	RawContent   string
+	FileType     string // "markdown", "text", "image", "binary"
+	FileSize     string
 	FileTreeJSON template.JS
 	CurrentPath  string
 	Breadcrumbs  []Breadcrumb
 	IsDirView    bool
 	DirItems     []DirItem
+	ShowAllFiles bool
 }
 
 type Breadcrumb struct {
@@ -309,6 +390,7 @@ type DirItem struct {
 	Name  string
 	Path  string
 	IsDir bool
+	Size  string
 }
 
 func makeBreadcrumbs(relPath string) []Breadcrumb {
@@ -425,8 +507,8 @@ func main() {
 			}
 
 			if readmePath != "" {
-				// Render readme markdown
-				serveMarkdown(w, r, readmePath, cleanPath, targetDir, mdParser)
+				// Render readme file
+				serveFile(w, r, readmePath, cleanPath, targetDir, mdParser)
 			} else {
 				// Serve directory index
 				serveDirectory(w, r, localPath, cleanPath, targetDir)
@@ -434,14 +516,14 @@ func main() {
 			return
 		}
 
-		// Serve markdown or static assets
-		ext := strings.ToLower(filepath.Ext(localPath))
-		if ext == ".md" {
-			serveMarkdown(w, r, localPath, cleanPath, targetDir, mdParser)
-		} else {
-			// Serve static asset (image, styles, etc.)
+		// Serve file
+		wantsHTML := strings.Contains(r.Header.Get("Accept"), "text/html")
+		if !wantsHTML || r.URL.Query().Get("raw") == "true" {
 			http.ServeFile(w, r, localPath)
+			return
 		}
+
+		serveFile(w, r, localPath, cleanPath, targetDir, mdParser)
 	})
 
 	addr := fmt.Sprintf(":%d", *port)
@@ -451,45 +533,119 @@ func main() {
 	}
 }
 
-func serveMarkdown(w http.ResponseWriter, r *http.Request, filePath, relPath string, rootDir string, mdParser goldmark.Markdown) {
-	content, err := os.ReadFile(filePath)
+func serveFile(w http.ResponseWriter, r *http.Request, filePath, relPath string, rootDir string, mdParser goldmark.Markdown) {
+	if r.URL.Query().Get("raw") == "true" {
+		http.ServeFile(w, r, filePath)
+		return
+	}
+
+	info, err := os.Stat(filePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error reading file: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error reading file info: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Parse Markdown
-	var buf bytes.Buffer
-	context := parser.NewContext()
-	if err := mdParser.Convert(content, &buf, parser.WithContext(context)); err != nil {
-		http.Error(w, fmt.Sprintf("Error parsing markdown: %v", err), http.StatusInternalServerError)
-		return
-	}
+	ext := strings.ToLower(filepath.Ext(filePath))
+	fileSizeStr := formatSize(info.Size())
 
-	// Extracted title
-	title := filepath.Base(filePath)
-	metaData := meta.Get(context)
-	if metaData != nil {
-		if metaTitle, ok := metaData["title"].(string); ok {
-			title = metaTitle
-		}
+	// Check if it's an image
+	isImg := false
+	imgExts := map[string]bool{
+		".png":  true,
+		".jpg":  true,
+		".jpeg": true,
+		".gif":  true,
+		".svg":  true,
+		".webp": true,
+		".ico":  true,
+		".bmp":  true,
+		".tiff": true,
+	}
+	if imgExts[ext] {
+		isImg = true
 	}
 
 	// Build Sidebar File Tree
-	tree, err := buildFileTree(rootDir)
+	tree, err := buildFileTree(rootDir, ShowAllFiles)
 	if err != nil {
 		log.Printf("Error building file tree: %v", err)
 	}
 	treeJSON, _ := json.Marshal(tree)
 
-	// Format page data
 	data := PageData{
-		Title:        title,
-		Content:      template.HTML(buf.String()),
+		Title:        filepath.Base(filePath),
+		FileSize:     fileSizeStr,
 		FileTreeJSON: template.JS(treeJSON),
 		CurrentPath:  filepath.ToSlash(relPath),
 		Breadcrumbs:  makeBreadcrumbs(relPath),
 		IsDirView:    false,
+		ShowAllFiles: ShowAllFiles,
+	}
+
+	if isImg {
+		data.FileType = "image"
+		data.Content = template.HTML(fmt.Sprintf(`<div class="image-viewer" style="text-align: center; padding: 20px;">
+			<img src="%s?raw=true" style="max-width: 100%%; height: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-md);" />
+		</div>`, filepath.ToSlash(relPath)))
+	} else if info.Size() > 2*1024*1024 {
+		// Too large to render (2MB limit)
+		data.FileType = "binary"
+		data.Content = template.HTML(fmt.Sprintf(`<div class="binary-viewer" style="text-align: center; padding: 48px 0; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-secondary);">
+			<svg style="width: 64px; height: 64px; color: var(--text-secondary); margin-bottom: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+			<h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">File is too large to render</h3>
+			<p style="color: var(--text-secondary); margin-bottom: 16px;">Size: %s</p>
+			<a href="%s?raw=true" class="theme-btn" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background: var(--accent-color); color: white; padding: 8px 16px;">
+				Download File
+			</a>
+		</div>`, fileSizeStr, filepath.ToSlash(relPath)))
+	} else {
+		// Read content
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error reading file: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		if isBinary(content) {
+			data.FileType = "binary"
+			data.Content = template.HTML(fmt.Sprintf(`<div class="binary-viewer" style="text-align: center; padding: 48px 0; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-secondary);">
+				<svg style="width: 64px; height: 64px; color: var(--text-secondary); margin-bottom: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"></path></svg>
+				<h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Binary File</h3>
+				<p style="color: var(--text-secondary); margin-bottom: 16px;">Size: %s</p>
+				<a href="%s?raw=true" class="theme-btn" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background: var(--accent-color); color: white; padding: 8px 16px;">
+					Download File
+				</a>
+			</div>`, fileSizeStr, filepath.ToSlash(relPath)))
+		} else {
+			data.RawContent = string(content)
+			if ext == ".md" {
+				data.FileType = "markdown"
+
+				// Parse Markdown
+				var buf bytes.Buffer
+				context := parser.NewContext()
+				if err := mdParser.Convert(content, &buf, parser.WithContext(context)); err != nil {
+					http.Error(w, fmt.Sprintf("Error parsing markdown: %v", err), http.StatusInternalServerError)
+					return
+				}
+				data.Content = template.HTML(buf.String())
+
+				// Extract title
+				title := filepath.Base(filePath)
+				metaData := meta.Get(context)
+				if metaData != nil {
+					if metaTitle, ok := metaData["title"].(string); ok {
+						title = metaTitle
+					}
+				}
+				data.Title = title
+			} else {
+				data.FileType = "text"
+				langClass := getLangClass(ext)
+				escapedCode := template.HTMLEscapeString(data.RawContent)
+				data.Content = template.HTML(fmt.Sprintf(`<pre><code class="language-%s" id="text-content-block">%s</code></pre>`, langClass, escapedCode))
+			}
+		}
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -513,10 +669,24 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, dirPath, relPath str
 			continue
 		}
 		itemPath := filepath.Join(relPath, name)
+		
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		ext := strings.ToLower(filepath.Ext(name))
+		isMD := ext == ".md"
+
 		if entry.IsDir() {
 			items = append(items, DirItem{Name: name, Path: filepath.ToSlash(itemPath), IsDir: true})
-		} else if strings.ToLower(filepath.Ext(name)) == ".md" {
-			items = append(items, DirItem{Name: name, Path: filepath.ToSlash(itemPath), IsDir: false})
+		} else if ShowAllFiles || isMD {
+			items = append(items, DirItem{
+				Name:  name,
+				Path:  filepath.ToSlash(itemPath),
+				IsDir: false,
+				Size:  formatSize(info.Size()),
+			})
 		}
 	}
 
@@ -528,7 +698,7 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, dirPath, relPath str
 		return strings.ToLower(items[i].Name) < strings.ToLower(items[j].Name)
 	})
 
-	tree, err := buildFileTree(rootDir)
+	tree, err := buildFileTree(rootDir, ShowAllFiles)
 	if err != nil {
 		log.Printf("Error building file tree: %v", err)
 	}
@@ -542,6 +712,7 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, dirPath, relPath str
 		Breadcrumbs:  makeBreadcrumbs(relPath),
 		IsDirView:    true,
 		DirItems:     items,
+		ShowAllFiles: ShowAllFiles,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -554,7 +725,7 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, dirPath, relPath str
 func serve404(w http.ResponseWriter, r *http.Request, relPath string, rootDir string) {
 	w.WriteHeader(http.StatusNotFound)
 
-	tree, err := buildFileTree(rootDir)
+	tree, err := buildFileTree(rootDir, ShowAllFiles)
 	if err != nil {
 		log.Printf("Error building file tree: %v", err)
 	}
@@ -574,6 +745,7 @@ func serve404(w http.ResponseWriter, r *http.Request, relPath string, rootDir st
 		CurrentPath:  filepath.ToSlash(relPath),
 		Breadcrumbs:  makeBreadcrumbs(relPath),
 		IsDirView:    false,
+		ShowAllFiles: ShowAllFiles,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
