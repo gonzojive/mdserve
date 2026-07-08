@@ -415,7 +415,10 @@ func makeBreadcrumbs(relPath string) []Breadcrumb {
 func main() {
 	port := flag.Int("port", 8080, "Port to run server on")
 	dirFlag := flag.String("dir", ".", "Directory of Markdown files to serve")
+	allFlag := flag.Bool("all", false, "Show all files, not just .md files")
 	flag.Parse()
+
+	ShowAllFiles = *allFlag
 
 	// Resolve absolute path of directory to serve
 	targetDir, err := filepath.Abs(*dirFlag)
