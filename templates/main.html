@@ -856,28 +856,61 @@
            return;
         }
 
-        // Search mode: show all nodes matching, and force parent expansion
+        // Collapse all nodes and hide them by default
         treeItems.forEach(node => {
-           const itemName = node.querySelector('.tree-item').textContent.toLowerCase();
+           node.style.display = 'none';
+           const children = node.querySelector('.tree-children');
+           const arrow = node.querySelector('.tree-arrow');
+           if (children && arrow) {
+              children.classList.remove('expanded');
+              arrow.classList.add('collapsed');
+           }
+        });
+
+        const showNodeAndParents = (node) => {
+           node.style.display = '';
+           let parent = node.parentElement;
+           while (parent && parent !== fileTreeRoot) {
+              if (parent.classList.contains('tree-children')) {
+                 parent.classList.add('expanded');
+                 const arrow = parent.previousElementSibling.querySelector('.tree-arrow');
+                 if (arrow) arrow.classList.remove('collapsed');
+              }
+              if (parent.classList.contains('tree-node')) {
+                 parent.style.display = '';
+              }
+              parent = parent.parentElement;
+           }
+        };
+
+        const showDescendants = (node) => {
+           const descendants = node.querySelectorAll('.tree-node');
+           descendants.forEach(desc => {
+              desc.style.display = '';
+              const children = desc.querySelector('.tree-children');
+              const arrow = desc.querySelector('.tree-arrow');
+              if (children && arrow) {
+                 children.classList.add('expanded');
+                 arrow.classList.remove('collapsed');
+              }
+           });
+        };
+
+        // Perform matching
+        treeItems.forEach(node => {
+           const itemLink = node.querySelector('.tree-item');
+           if (!itemLink) return;
+           const itemName = itemLink.textContent.toLowerCase();
            const match = itemName.includes(query);
            
            if (match) {
-              node.style.display = '';
-              // Expand all parents of matching node
-              let parent = node.parentElement;
-              while (parent && parent !== fileTreeRoot) {
-                 if (parent.classList.contains('tree-children')) {
-                    parent.classList.add('expanded');
-                    const arrow = parent.previousElementSibling.querySelector('.tree-arrow');
-                    if (arrow) arrow.classList.remove('collapsed');
-                 }
-                 if (parent.classList.contains('tree-node')) {
-                    parent.style.display = '';
-                 }
-                 parent = parent.parentElement;
+              showNodeAndParents(node);
+              
+              // If this is a directory, show all of its descendants
+              const subContainer = node.querySelector('.tree-children');
+              if (subContainer) {
+                 showDescendants(node);
               }
-           } else {
-              node.style.display = 'none';
            }
         });
       });
