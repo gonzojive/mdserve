@@ -16,6 +16,21 @@
     <link id="hljs-light" rel="stylesheet" href="/third_party/highlight-github.min.css">
     <link id="hljs-dark" rel="stylesheet" href="/third_party/highlight-github-dark.min.css" disabled>
 
+    <script>
+       (function() {
+          const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.setAttribute('data-color-mode', savedTheme);
+          if (savedTheme === 'dark') {
+             const hljsLight = document.getElementById('hljs-light');
+             const hljsDark = document.getElementById('hljs-dark');
+             if (hljsLight && hljsDark) {
+                hljsLight.disabled = true;
+                hljsDark.disabled = false;
+             }
+          }
+       })();
+    </script>
+
     <style>
       :root {
         --bg-primary: #ffffff;
