@@ -591,12 +591,12 @@ func serveFile(w http.ResponseWriter, r *http.Request, filePath, relPath string,
 			<img src="%s?raw=true" style="max-width: 100%%; height: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-md);" />
 		</div>`, filepath.ToSlash(relPath)))
 	} else if info.Size() > 2*1024*1024 {
-		// Too large to render (2MB limit)
+		// Non-image is too large (> 2MB limit)
 		data.FileType = "binary"
 		data.Content = template.HTML(fmt.Sprintf(`<div class="binary-viewer" style="text-align: center; padding: 48px 0; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-secondary);">
 			<svg style="width: 64px; height: 64px; color: var(--text-secondary); margin-bottom: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
 			<h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">File is too large to render</h3>
-			<p style="color: var(--text-secondary); margin-bottom: 16px;">Size: %s</p>
+			<p style="color: var(--text-secondary); margin-bottom: 16px;">Size: %s (Limit: 2MB)</p>
 			<a href="%s?raw=true" class="theme-btn" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background: var(--accent-color); color: white; padding: 8px 16px;">
 				Download File
 			</a>
