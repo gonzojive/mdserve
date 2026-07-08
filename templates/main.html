@@ -1090,10 +1090,7 @@
          const savedPref = localStorage.getItem('show-all-files-preference');
          if (savedPref === 'false') {
             toggleAll.checked = false;
-            // Trigger change event to filter initially
-            setTimeout(() => {
-               toggleAll.dispatchEvent(new Event('change'));
-            }, 50);
+            toggleAll.dispatchEvent(new Event('change'));
          }
       }
 
