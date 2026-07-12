@@ -445,6 +445,7 @@ func main() {
 		goldmark.WithExtensions(
 			meta.Meta,
 			extension.GFM,
+			extension.Footnote,
 		),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
