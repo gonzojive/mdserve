@@ -412,6 +412,22 @@ func makeBreadcrumbs(relPath string) []Breadcrumb {
 	return breadcrumbs
 }
 
+func createMarkdownParser() goldmark.Markdown {
+	return goldmark.New(
+		goldmark.WithExtensions(
+			meta.Meta,
+			extension.GFM,
+			extension.Footnote,
+		),
+		goldmark.WithParserOptions(
+			parser.WithAutoHeadingID(),
+		),
+		goldmark.WithRendererOptions(
+			htmlrenderer.WithUnsafe(),
+		),
+	)
+}
+
 func main() {
 	port := flag.Int("port", 8080, "Port to run server on")
 	dirFlag := flag.String("dir", ".", "Directory of Markdown files to serve")
@@ -441,18 +457,7 @@ func main() {
 	watcher.watch()
 
 	// Create markdown parser
-	mdParser := goldmark.New(
-		goldmark.WithExtensions(
-			meta.Meta,
-			extension.GFM,
-		),
-		goldmark.WithParserOptions(
-			parser.WithAutoHeadingID(),
-		),
-		goldmark.WithRendererOptions(
-			htmlrenderer.WithUnsafe(),
-		),
-	)
+	mdParser := createMarkdownParser()
 
 	// HTTP Handler
 	http.HandleFunc("/events", hub.serveSSE)

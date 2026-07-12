@@ -704,6 +704,113 @@
           padding: 20px;
         }
       }
+
+      /* Modern Footnote Styling */
+      .markdown-body .footnotes {
+        margin-top: 48px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border-color);
+        font-size: 0.85em;
+        color: var(--text-secondary);
+      }
+
+      /* Hide goldmark's default hr since we use border-top on the container */
+      .markdown-body .footnotes hr {
+        display: none;
+      }
+
+      .markdown-body .footnotes ol {
+        padding-left: 20px;
+      }
+
+      .markdown-body .footnotes li {
+        margin-bottom: 8px;
+        line-height: 1.6;
+        position: relative;
+        transition: background-color 0.5s ease;
+      }
+
+      /* Disable default github-markdown-css rigid target border */
+      .markdown-body .footnotes li:target::before {
+        content: none !important;
+        border: none !important;
+      }
+
+      /* Add brackets to goldmark's standard footnote references to match GFM */
+      .markdown-body .footnote-ref::before {
+        content: "[";
+      }
+      .markdown-body .footnote-ref::after {
+        content: "]";
+      }
+
+      /* Offset scrolling when clicking footnote links so they aren't hidden under headers */
+      .markdown-body .footnotes li,
+      .markdown-body [data-footnote-ref],
+      .markdown-body .footnote-ref {
+        scroll-margin-top: 80px;
+      }
+
+      /* Target Glow Highlight */
+      .markdown-body .footnotes li:target {
+        animation: footnote-glow 2s ease-out;
+        border-radius: 6px;
+        padding: 4px 8px;
+        margin-left: -8px;
+        margin-right: -8px;
+      }
+
+      @keyframes footnote-glow {
+        0% {
+          background-color: rgba(9, 105, 218, 0.15); /* Muted blue/accent glow */
+          box-shadow: 0 0 0 2px var(--accent-color);
+        }
+        70% {
+          background-color: rgba(9, 105, 218, 0.15);
+          box-shadow: 0 0 0 2px var(--accent-color);
+        }
+        100% {
+          background-color: transparent;
+          box-shadow: 0 0 0 0 transparent;
+        }
+      }
+
+      /* Dark mode specific highlight adjustment */
+      [data-color-mode="dark"] .markdown-body .footnotes li:target {
+        animation: footnote-glow-dark 2s ease-out;
+      }
+
+      @keyframes footnote-glow-dark {
+        0% {
+          background-color: rgba(88, 166, 255, 0.15);
+          box-shadow: 0 0 0 2px var(--accent-color);
+        }
+        70% {
+          background-color: rgba(88, 166, 255, 0.15);
+          box-shadow: 0 0 0 2px var(--accent-color);
+        }
+        100% {
+          background-color: transparent;
+          box-shadow: 0 0 0 0 transparent;
+        }
+      }
+
+      /* Back-reference link styling */
+      .markdown-body .data-footnote-backref,
+      .markdown-body .footnote-backref {
+        display: inline-block;
+        margin-left: 4px;
+        color: var(--accent-color);
+        text-decoration: none !important;
+        transition: transform 0.2s ease, color 0.2s ease;
+      }
+
+      .markdown-body .data-footnote-backref:hover,
+      .markdown-body .footnote-backref:hover {
+        transform: translateX(-2px);
+        color: var(--accent-hover);
+        text-decoration: none !important;
+      }
     </style>
 </head>
 <body>
