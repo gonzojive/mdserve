@@ -15,7 +15,7 @@ This is the de facto standard for footnotes in the markdown ecosystem:
 This renders references as superscript anchor links (`<sup><a href="#fn:1">1</a></sup>`) and places the collected list of footnotes inside a `<div class="footnotes">` section at the end of the document.
 
 ### GitHub Flavored Markdown (GFM)
-In September 2021, GitHub officially added footnotes to GFM, adopting the PHP Markdown Extra syntax. Key characteristics of GFM footnotes include:
+In September 2021, GitHub officially added footnotes to GFM, adopting the PHP Markdown Extra syntax.[^gfm-fn] Key characteristics of GFM footnotes include:
 *   Adding `data-footnotes` to the footnotes `<section>`.
 *   Injecting a screen-reader-only accessible header (`<h2 id="footnote-label" class="sr-only">Footnotes</h2>`).
 *   Using specific attributes (`data-footnote-ref`, `data-footnote-backref`) for CSS selectors.
@@ -109,3 +109,6 @@ In [templates/main.html](file:///home/red/ws/mdserve/templates/main.html), we ad
 }
 ```
 *These highlight animations are customized for both light and dark themes using CSS variables (`--accent-color`, `--border-color`).*
+
+[^gfm-fn]: For years, native footnote support was one of the most requested features on GitHub. Although GitHub Pages supported footnotes (via Kramdown), the main GitHub platform did not render them until September 30, 2021. You can read the official announcement on the [GitHub Blog](https://github.blog/changelog/2021-09-30-markdown-footnotes-are-now-available/).
+
