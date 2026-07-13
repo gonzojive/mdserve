@@ -180,6 +180,28 @@
         box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.15);
       }
 
+      .sidebar-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--border-color);
+        background-color: var(--bg-primary);
+        color: var(--text-secondary);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s, background-color 0.2s;
+        box-sizing: border-box;
+        flex-shrink: 0;
+      }
+
+      .sidebar-action-btn:hover {
+        border-color: var(--accent-color);
+        color: var(--text-primary);
+        background-color: var(--bg-secondary);
+      }
+
       .sidebar-content {
         flex-grow: 1;
         overflow-y: auto;
@@ -840,8 +862,14 @@
                 </span>
             </div>
         </div>
-        <div class="sidebar-search">
-            <input type="text" id="search-box" class="search-input" placeholder="Search files...">
+        <div class="sidebar-search" style="display: flex; gap: 6px; align-items: center;">
+            <input type="text" id="search-box" class="search-input" placeholder="Search files..." style="flex-grow: 1; min-width: 0;">
+            <button class="sidebar-action-btn" id="btn-expand-all" title="Expand All Folders">
+                <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 13 12 18 17 13"></polyline><polyline points="7 6 12 11 17 6"></polyline></svg>
+            </button>
+            <button class="sidebar-action-btn" id="btn-collapse-all" title="Collapse All Folders">
+                <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 11 12 6 7 11"></polyline><polyline points="17 18 12 13 7 18"></polyline></svg>
+            </button>
         </div>
         {{if .ShowAllFiles}}
         <div class="sidebar-toggle-all" style="display: flex; align-items: center; justify-content: space-between;">
@@ -1288,6 +1316,64 @@
             toggleAll.checked = false;
             toggleAll.dispatchEvent(new Event('change'));
          }
+      // Sidebar Expand All / Collapse All Handling
+      const btnExpandAll = document.getElementById('btn-expand-all');
+      const btnCollapseAll = document.getElementById('btn-collapse-all');
+
+      if (btnExpandAll && btnCollapseAll) {
+         btnExpandAll.addEventListener('click', () => {
+            const subContainers = fileTreeRoot.querySelectorAll('.tree-children');
+            const arrows = fileTreeRoot.querySelectorAll('.tree-arrow');
+            
+            subContainers.forEach(container => {
+               container.classList.add('expanded');
+            });
+            arrows.forEach(arrow => {
+               if (!arrow.classList.contains('leaf')) {
+                  arrow.classList.remove('collapsed');
+               }
+            });
+
+            // Save all directories as expanded in localStorage
+            const state = {};
+            const dirNodes = fileTreeRoot.querySelectorAll('.tree-node');
+            dirNodes.forEach(node => {
+               const children = node.querySelector('.tree-children');
+               const itemLink = node.querySelector('.tree-item');
+               if (children && itemLink) {
+                  const path = itemLink.getAttribute('href');
+                  if (path) state[path] = false; // false = not collapsed (expanded)
+               }
+            });
+            localStorage.setItem('mdserve_collapsed_state', JSON.stringify(state));
+         });
+
+         btnCollapseAll.addEventListener('click', () => {
+            const subContainers = fileTreeRoot.querySelectorAll('.tree-children');
+            const arrows = fileTreeRoot.querySelectorAll('.tree-arrow');
+            
+            subContainers.forEach(container => {
+               container.classList.remove('expanded');
+            });
+            arrows.forEach(arrow => {
+               if (!arrow.classList.contains('leaf')) {
+                  arrow.classList.add('collapsed');
+               }
+            });
+
+            // Save all directories as collapsed in localStorage
+            const state = {};
+            const dirNodes = fileTreeRoot.querySelectorAll('.tree-node');
+            dirNodes.forEach(node => {
+               const children = node.querySelector('.tree-children');
+               const itemLink = node.querySelector('.tree-item');
+               if (children && itemLink) {
+                  const path = itemLink.getAttribute('href');
+                  if (path) state[path] = true; // true = collapsed
+               }
+            });
+            localStorage.setItem('mdserve_collapsed_state', JSON.stringify(state));
+         });
       }
 
       // Extract Headings for TOC & ScrollSpy
