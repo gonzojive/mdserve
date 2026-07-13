@@ -5,6 +5,19 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 gazelle(name = "gazelle")
 
 go_library(
+    name = "gitignore",
+    srcs = ["gitignore/gitignore.go"],
+    importpath = "mdserve/gitignore",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "gitignore_test",
+    srcs = ["gitignore/gitignore_test.go"],
+    embed = [":gitignore"],
+)
+
+go_library(
     name = "mdserve_lib",
     srcs = [
         "cli.go",
@@ -29,6 +42,7 @@ go_library(
     importpath = "mdserve",
     visibility = ["//visibility:private"],
     deps = [
+        ":gitignore",
         "@com_github_fsnotify_fsnotify//:fsnotify",
         "@com_github_spf13_cobra//:cobra",
         "@com_github_yuin_goldmark//:goldmark",

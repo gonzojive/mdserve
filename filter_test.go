@@ -47,23 +47,17 @@ func TestShouldExcludeName(t *testing.T) {
 
 // TestShouldExcludePath verifies ShouldExcludePath detects .git, .gitignore, and ignored files.
 func TestShouldExcludePath(t *testing.T) {
-	// Set up temporary gitignore patterns
-	rules := []gitIgnoreRule{}
-	for _, p := range []string{"/bazel-*", "*.swp"} {
-		r, err := compilePattern(p)
-		if err == nil {
-			rules = append(rules, *r)
-		}
-	}
-	GitIgnoreInstance = &GitIgnore{rules: rules}
-	defer func() { GitIgnoreInstance = nil }()
-
-	// We must write dummy folders/files on disk if we test os.Stat inside ShouldExcludePath.
-	// E.g. "bazel-out/file.md" where bazel-out is a directory.
 	tempRoot := t.TempDir()
 	origWd, _ := os.Getwd()
 	_ = os.Chdir(tempRoot)
-	defer func() { _ = os.Chdir(origWd) }()
+	defer func() {
+		_ = os.Chdir(origWd)
+		GitIgnoreInstance = nil
+	}()
+
+	// Write mock gitignore
+	_ = os.WriteFile(".gitignore", []byte("/bazel-*\n*.swp\n"), 0644)
+	InitGitIgnore(tempRoot)
 
 	_ = os.Mkdir("bazel-out", 0755)
 	_ = os.WriteFile("bazel-out/file.md", []byte("bazel"), 0644)
@@ -99,15 +93,11 @@ func TestShouldExcludePath(t *testing.T) {
 
 // TestShouldWatchPath verifies ShouldWatchPath always filters .git and ignored files.
 func TestShouldWatchPath(t *testing.T) {
-	rules := []gitIgnoreRule{}
-	for _, p := range []string{"/bazel-*"} {
-		r, err := compilePattern(p)
-		if err == nil {
-			rules = append(rules, *r)
-		}
-	}
-	GitIgnoreInstance = &GitIgnore{rules: rules}
+	tempRoot := t.TempDir()
 	defer func() { GitIgnoreInstance = nil }()
+
+	_ = os.WriteFile(filepath.Join(tempRoot, ".gitignore"), []byte("/bazel-*\n"), 0644)
+	InitGitIgnore(tempRoot)
 
 	tests := []struct {
 		path    string
@@ -124,46 +114,6 @@ func TestShouldWatchPath(t *testing.T) {
 	for _, tt := range tests {
 		if got := ShouldWatchPath(tt.path, tt.relPath); got != tt.want {
 			t.Errorf("ShouldWatchPath(%q, %q) = %v; want %v", tt.path, tt.relPath, got, tt.want)
-		}
-	}
-}
-
-// TestGitIgnoreMatch verifies loading patterns and matching paths.
-func TestGitIgnoreMatch(t *testing.T) {
-	tempDir := t.TempDir()
-	gitignorePath := filepath.Join(tempDir, ".gitignore")
-	content := `# comment
-/mdserve
-*.swp
-/bazel-*
-!/bazel-keep
-`
-	if err := os.WriteFile(gitignorePath, []byte(content), 0644); err != nil {
-		t.Fatalf("Failed to write temp .gitignore: %v", err)
-	}
-
-	gi, err := LoadGitIgnore(gitignorePath)
-	if err != nil {
-		t.Fatalf("LoadGitIgnore failed: %v", err)
-	}
-
-	tests := []struct {
-		path  string
-		isDir bool
-		want  bool
-	}{
-		{"mdserve", false, true},
-		{"sub/mdserve", false, false}, // root-only pattern
-		{"file.swp", false, true},
-		{"sub/file.swp", false, true}, // glob pattern anywhere
-		{"bazel-bin", true, true},
-		{"bazel-out/main", false, true}, // root-only glob prefix match
-		{"bazel-keep", false, false},    // negated pattern
-		{"normal.md", false, false},
-	}
-	for _, tt := range tests {
-		if got := gi.Match(tt.path, tt.isDir); got != tt.want {
-			t.Errorf("gi.Match(%q, %v) = %v; want %v", tt.path, tt.isDir, got, tt.want)
 		}
 	}
 }
