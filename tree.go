@@ -73,9 +73,15 @@ func buildFileTree(rootDir string, showAll bool) (*FileNode, error) {
 		var nodes []*FileNode
 		for _, entry := range entries {
 			name := entry.Name()
+			if ShouldExcludeName(name, showAll) {
+				continue
+			}
 			fullPath := filepath.Join(dir, name)
 			relPath, err := filepath.Rel(rootDir, fullPath)
 			if err != nil {
+				continue
+			}
+			if GitIgnoreInstance != nil && GitIgnoreInstance.Match(relPath, entry.IsDir()) && !showAll {
 				continue
 			}
 			relPath = "/" + filepath.ToSlash(relPath)

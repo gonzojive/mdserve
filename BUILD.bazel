@@ -9,6 +9,7 @@ go_library(
     srcs = [
         "cli.go",
         "config.go",
+        "filter.go",
         "handler.go",
         "hub.go",
         "main.go",
@@ -28,6 +29,7 @@ go_library(
     importpath = "mdserve",
     visibility = ["//visibility:private"],
     deps = [
+        "//gitignore",
         "@com_github_fsnotify_fsnotify//:fsnotify",
         "@com_github_spf13_cobra//:cobra",
         "@com_github_yuin_goldmark//:goldmark",
@@ -49,6 +51,7 @@ go_test(
     srcs = [
         "cli_test.go",
         "config_test.go",
+        "filter_test.go",
         "handler_test.go",
         "hub_test.go",
         "parser_test.go",

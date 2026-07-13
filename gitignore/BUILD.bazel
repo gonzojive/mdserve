@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "gitignore",
+    srcs = ["gitignore.go"],
+    importpath = "mdserve/gitignore",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_sabhiram_go_gitignore//:go-gitignore"],
+)
+
+go_test(
+    name = "gitignore_test",
+    srcs = ["gitignore_test.go"],
+    embed = [":gitignore"],
+)

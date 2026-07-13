@@ -64,3 +64,11 @@ jobs:
 
       - name: Build Bazel Targets
         run: bazel build //... //go/cmd/devtool/...
+
+  build-and-test:
+    name: Build and Test
+    needs: [go-build-and-test, bazel-build-and-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Success
+        run: echo "All builds and tests completed successfully!"
