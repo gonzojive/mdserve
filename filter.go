@@ -12,12 +12,38 @@ import (
 // GitDirName is the folder name used by git.
 const GitDirName = ".git"
 
+// RepoRootPath is the resolved repository root (or rootDir if not in a repository).
+var RepoRootPath string
+
 // GitIgnoreInstance holds the loaded gitignore patterns for the root directory.
 var GitIgnoreInstance *gitignore.GitIgnore
 
-// InitGitIgnore resolves and loads a .gitignore file if it exists in the rootDir.
+// FindRepoRoot walks up from startDir to find the repository root directory (containing .git or .gitignore).
+func FindRepoRoot(startDir string) string {
+	dir, err := filepath.Abs(startDir)
+	if err != nil {
+		return startDir
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		if _, err := os.Stat(filepath.Join(dir, ".gitignore")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return startDir
+}
+
+// InitGitIgnore resolves and loads a .gitignore file by searching upwards from rootDir.
 func InitGitIgnore(rootDir string) {
-	gi, err := gitignore.Load(filepath.Join(rootDir, ".gitignore"))
+	RepoRootPath = FindRepoRoot(rootDir)
+	gi, err := gitignore.Load(filepath.Join(RepoRootPath, ".gitignore"))
 	if err != nil {
 		log.Printf("Error loading .gitignore: %v", err)
 	}
@@ -49,11 +75,21 @@ func ShouldExcludePath(path string, showAll bool) bool {
 			return true
 		}
 	}
+	// Compute relative path from RepoRootPath
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		absPath = path
+	}
+	relPath, err := filepath.Rel(RepoRootPath, absPath)
+	if err != nil {
+		relPath = path
+	}
+
 	isDir := false
-	if info, err := os.Stat(path); err == nil && info.IsDir() {
+	if info, err := os.Stat(absPath); err == nil && info.IsDir() {
 		isDir = true
 	}
-	if GitIgnoreInstance != nil && GitIgnoreInstance.Match(path, isDir) {
+	if GitIgnoreInstance != nil && GitIgnoreInstance.Match(relPath, isDir) {
 		return true
 	}
 	return false

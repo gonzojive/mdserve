@@ -77,14 +77,32 @@ func buildFileTree(rootDir string, showAll bool) (*FileNode, error) {
 				continue
 			}
 			fullPath := filepath.Join(dir, name)
+
+			// Resolve symlinks to directories
+			isDir := entry.IsDir()
+			if !isDir && (entry.Type()&os.ModeSymlink) != 0 {
+				if targetInfo, err := os.Stat(fullPath); err == nil {
+					isDir = targetInfo.IsDir()
+				}
+			}
+
+			// Compute relative path to rootDir for serving URL path
 			relPath, err := filepath.Rel(rootDir, fullPath)
 			if err != nil {
 				continue
 			}
-			if GitIgnoreInstance != nil && GitIgnoreInstance.Match(relPath, entry.IsDir()) && !showAll {
+
+			// Compute relative path to RepoRootPath for gitignore checking
+			relRepoPath, err := filepath.Rel(RepoRootPath, fullPath)
+			if err != nil {
+				relRepoPath = relPath
+			}
+
+			if GitIgnoreInstance != nil && GitIgnoreInstance.Match(relRepoPath, isDir) && !showAll {
 				continue
 			}
-			relPath = "/" + filepath.ToSlash(relPath)
+
+			relPathUrl := "/" + filepath.ToSlash(relPath)
 
 			info, err := entry.Info()
 			if err != nil {
@@ -93,8 +111,8 @@ func buildFileTree(rootDir string, showAll bool) (*FileNode, error) {
 
 			node := &FileNode{
 				Name:  name,
-				Path:  relPath,
-				IsDir: entry.IsDir(),
+				Path:  relPathUrl,
+				IsDir: isDir,
 				Size:  info.Size(),
 			}
 			if entry.IsDir() {

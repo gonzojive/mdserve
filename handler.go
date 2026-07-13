@@ -241,25 +241,41 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, dirPath, relPath str
 		if ShouldExcludeName(name, ShowAllFiles) {
 			continue
 		}
-		itemPath := filepath.Join(relPath, name)
-		if GitIgnoreInstance != nil && GitIgnoreInstance.Match(itemPath, entry.IsDir()) && !ShowAllFiles {
+		fullPath := filepath.Join(dirPath, name)
+
+		// Resolve symlinks to directories
+		isDir := entry.IsDir()
+		if !isDir && (entry.Type()&os.ModeSymlink) != 0 {
+			if targetInfo, err := os.Stat(fullPath); err == nil {
+				isDir = targetInfo.IsDir()
+			}
+		}
+
+		// Compute relative path to RepoRootPath for gitignore checking
+		relRepoPath, err := filepath.Rel(RepoRootPath, fullPath)
+		if err != nil {
+			relRepoPath = filepath.Join(relPath, name)
+		}
+
+		if GitIgnoreInstance != nil && GitIgnoreInstance.Match(relRepoPath, isDir) && !ShowAllFiles {
 			continue
 		}
-		
+
 		info, err := entry.Info()
 		if err != nil {
 			continue
 		}
 
+		itemPath := filepath.ToSlash(filepath.Join(relPath, name))
 		ext := strings.ToLower(filepath.Ext(name))
 		isMD := ext == ".md"
 
-		if entry.IsDir() {
-			items = append(items, DirItem{Name: name, Path: filepath.ToSlash(itemPath), IsDir: true})
+		if isDir {
+			items = append(items, DirItem{Name: name, Path: itemPath, IsDir: true})
 		} else if ShowAllFiles || isMD {
 			items = append(items, DirItem{
 				Name:  name,
-				Path:  filepath.ToSlash(itemPath),
+				Path:  itemPath,
 				IsDir: false,
 				Size:  formatSize(info.Size()),
 			})
