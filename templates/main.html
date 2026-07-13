@@ -1083,7 +1083,8 @@
           // Arrow indicator for dirs
           const arrow = document.createElement('div');
           arrow.className = 'tree-arrow';
-          if (node.isDir) {
+          const hasChildren = node.isDir && node.children && node.children.length > 0;
+          if (hasChildren) {
              arrow.innerHTML = '<svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>';
           } else {
              arrow.classList.add('leaf');
@@ -1113,7 +1114,7 @@
           li.appendChild(itemWrapper);
 
           // Children container (if dir)
-          if (node.isDir && node.children && node.children.length > 0) {
+          if (hasChildren) {
              const subContainer = document.createElement('ul');
              subContainer.className = 'tree-children';
              li.appendChild(subContainer);
