@@ -48,11 +48,6 @@ type DirItem struct {
 	Size  string
 }
 
-// IsHidden returns true if the entry's name starts with a dot.
-func (d DirItem) IsHidden() bool {
-	return len(d.Name) > 0 && d.Name[0] == '.'
-}
-
 // formatSize formats a byte count into a human-readable size string (e.g. 10.5 KB).
 func formatSize(bytes int64) string {
 	const unit = 1024

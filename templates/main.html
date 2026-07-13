@@ -205,15 +205,6 @@
         margin: 2px 0;
       }
 
-      .tree-node.hidden-node {
-        opacity: 0.6;
-        transition: opacity 0.2s;
-      }
-
-      .tree-node.hidden-node:hover {
-        opacity: 1.0;
-      }
-
       .tree-item-wrapper {
         display: flex;
         align-items: center;
@@ -653,15 +644,6 @@
         box-shadow: var(--shadow-sm);
       }
 
-      .dir-card.hidden-card {
-        opacity: 0.6;
-        transition: opacity 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-      }
-
-      .dir-card.hidden-card:hover {
-        opacity: 1.0;
-      }
-
       .dir-card-icon {
         width: 36px;
         height: 36px;
@@ -907,7 +889,7 @@
                 <p class="dir-description">Select a folder or a file to view its rendering.</p>
                 <div class="dir-grid">
                     {{range .DirItems}}
-                        <a href="{{.Path}}" class="dir-card{{if .IsHidden}} hidden-card{{end}}">
+                        <a href="{{.Path}}" class="dir-card">
                             {{if .IsDir}}
                                 <svg class="dir-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                             {{else}}
@@ -1048,9 +1030,6 @@
         nodes.forEach(node => {
           const li = document.createElement('li');
           li.className = 'tree-node';
-          if (node.name.startsWith('.') && node.name !== '.') {
-             li.classList.add('hidden-node');
-          }
 
           const itemWrapper = document.createElement('div');
           itemWrapper.className = 'tree-item-wrapper';
@@ -1098,12 +1077,7 @@
              renderTree(node.children, subContainer, node.path);
 
              // Handle collapse / expand logic
-             const isParentOfCurrent = currentPath.startsWith(node.path + '/') || currentPath === node.path;
-             if (isParentOfCurrent) {
-                subContainer.classList.add('expanded');
-             } else {
-                arrow.classList.add('collapsed');
-             }
+             subContainer.classList.add('expanded');
 
              const toggleDir = () => {
                 const isExpanded = subContainer.classList.toggle('expanded');
