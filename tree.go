@@ -98,7 +98,8 @@ func buildFileTree(rootDir string, showAll bool) (*FileNode, error) {
 				relRepoPath = relPath
 			}
 
-			if GitIgnoreInstance != nil && GitIgnoreInstance.Match(relRepoPath, isDir) && !showAll {
+			isGitIgnored := GitIgnoreInstance != nil && GitIgnoreInstance.Match(relRepoPath, isDir)
+			if isGitIgnored && !showAll {
 				continue
 			}
 
@@ -115,10 +116,16 @@ func buildFileTree(rootDir string, showAll bool) (*FileNode, error) {
 				IsDir: isDir,
 				Size:  info.Size(),
 			}
-			if entry.IsDir() {
-				children, err := walk(fullPath)
-				if err == nil && len(children) > 0 {
-					node.Children = children
+			if isDir {
+				var children []*FileNode
+				if !isGitIgnored {
+					var err error
+					children, err = walk(fullPath)
+					if err == nil && len(children) > 0 {
+						node.Children = children
+					}
+				}
+				if len(children) > 0 || showAll {
 					nodes = append(nodes, node)
 				}
 			} else {
