@@ -73,6 +73,9 @@ func buildFileTree(rootDir string, showAll bool) (*FileNode, error) {
 		var nodes []*FileNode
 		for _, entry := range entries {
 			name := entry.Name()
+			if name == ".git" {
+				continue
+			}
 			fullPath := filepath.Join(dir, name)
 			relPath, err := filepath.Rel(rootDir, fullPath)
 			if err != nil {

@@ -13,6 +13,8 @@ import (
 //	  .hidden.md
 //	  .hiddendir/
 //	    inside.md
+//	  .git/
+//	    config
 func makeTempDir(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
@@ -26,11 +28,13 @@ func makeTempDir(t *testing.T) string {
 	must(os.WriteFile(filepath.Join(root, ".hidden.md"), []byte("# hidden"), 0o644))
 	must(os.Mkdir(filepath.Join(root, ".hiddendir"), 0o755))
 	must(os.WriteFile(filepath.Join(root, ".hiddendir", "inside.md"), []byte("# inside"), 0o644))
+	must(os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	must(os.WriteFile(filepath.Join(root, ".git", "config"), []byte("[core]"), 0o644))
 	return root
 }
 
 // TestBuildFileTree_IncludesHiddenFiles verifies that buildFileTree returns
-// dot-prefixed files and directories.
+// dot-prefixed files and directories but excludes .git.
 func TestBuildFileTree_IncludesHiddenFiles(t *testing.T) {
 	root := makeTempDir(t)
 
@@ -57,6 +61,12 @@ func TestBuildFileTree_IncludesHiddenFiles(t *testing.T) {
 	}
 	if !names["inside.md"] {
 		t.Errorf("expected inside.md (inside .hiddendir) in file tree, got names: %v", names)
+	}
+	if names[".git"] {
+		t.Error("expected .git directory to be excluded from file tree")
+	}
+	if names["config"] {
+		t.Error("expected config file inside .git to be excluded from file tree")
 	}
 }
 

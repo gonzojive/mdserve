@@ -79,8 +79,10 @@ func (w *Watcher) watch() {
 				if event.Op&fsnotify.Create != 0 {
 					info, err := os.Stat(event.Name)
 					if err == nil && info.IsDir() {
-						log.Printf("New directory detected, adding to watch list: %s", event.Name)
-						w.watcher.Add(event.Name)
+						if filepath.Base(event.Name) != ".git" {
+							log.Printf("New directory detected, adding to watch list: %s", event.Name)
+							w.watcher.Add(event.Name)
+						}
 					}
 				}
 
@@ -101,6 +103,9 @@ func (w *Watcher) watchDir(path string) {
 			return err
 		}
 		if info.IsDir() {
+			if info.Name() == ".git" {
+				return filepath.SkipDir
+			}
 			err = w.watcher.Add(p)
 			if err != nil {
 				log.Printf("Error watching dir %s: %v", p, err)

@@ -238,6 +238,9 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, dirPath, relPath str
 	var items []DirItem
 	for _, entry := range entries {
 		name := entry.Name()
+		if name == ".git" {
+			continue
+		}
 		itemPath := filepath.Join(relPath, name)
 		
 		info, err := entry.Info()
