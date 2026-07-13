@@ -270,10 +270,6 @@ func (w *Watcher) watchDir(path string) {
 			return err
 		}
 		if info.IsDir() {
-			name := info.Name()
-			if strings.HasPrefix(name, ".") && name != "." {
-				return filepath.SkipDir
-			}
 			err = w.watcher.Add(p)
 			if err != nil {
 				log.Printf("Error watching dir %s: %v", p, err)
@@ -306,9 +302,6 @@ func buildFileTree(rootDir string, showAll bool) (*FileNode, error) {
 		var nodes []*FileNode
 		for _, entry := range entries {
 			name := entry.Name()
-			if strings.HasPrefix(name, ".") {
-				continue
-			}
 			fullPath := filepath.Join(dir, name)
 			relPath, err := filepath.Rel(rootDir, fullPath)
 			if err != nil {
@@ -673,9 +666,6 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, dirPath, relPath str
 	var items []DirItem
 	for _, entry := range entries {
 		name := entry.Name()
-		if strings.HasPrefix(name, ".") {
-			continue
-		}
 		itemPath := filepath.Join(relPath, name)
 		
 		info, err := entry.Info()
