@@ -86,7 +86,7 @@ func buildFileTree(rootDir string, showAll bool) (*FileNode, error) {
 			if err != nil {
 				continue
 			}
-			if GitIgnoreInstance != nil && GitIgnoreInstance.Match(relPath) && !showAll {
+			if GitIgnoreInstance != nil && GitIgnoreInstance.Match(relPath, entry.IsDir()) && !showAll {
 				continue
 			}
 			relPath = "/" + filepath.ToSlash(relPath)

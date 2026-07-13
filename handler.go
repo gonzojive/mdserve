@@ -242,7 +242,7 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, dirPath, relPath str
 			continue
 		}
 		itemPath := filepath.Join(relPath, name)
-		if GitIgnoreInstance != nil && GitIgnoreInstance.Match(itemPath) && !ShowAllFiles {
+		if GitIgnoreInstance != nil && GitIgnoreInstance.Match(itemPath, entry.IsDir()) && !ShowAllFiles {
 			continue
 		}
 		
