@@ -5,10 +5,21 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+    types: [ opened, edited, synchronize, reopened ]
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  pr-title:
+    name: Validate PR Title (Semantic Commits)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Validate PR Title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  go-build-and-test:
+    name: Go Build & Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -31,3 +42,25 @@ jobs:
 
       - name: Build (devtool)
         run: go build -v ./go/cmd/devtool/...
+
+  bazel-build-and-test:
+    name: Bazel Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bazel Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel
+          key: ${{ runner.os }}-bazel-${{ hashFiles('**/BUILD.bazel', '**/MODULE.bazel') }}
+          restore-keys: |
+            ${{ runner.os }}-bazel-
+
+      - name: Run Bazel Tests
+        run: bazel test //...
+
+      - name: Build Bazel Targets
+        run: bazel build //... //go/cmd/devtool/...
