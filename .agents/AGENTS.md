@@ -14,7 +14,6 @@ All Go code must conform to the **Uber Go Style Guide**. Key highlights to check
 
 ### 2. Mandatory Documentation
 - Every public (exported) symbol (functions, methods, structs, interfaces, variables, constants) must have a clear Go doc comment.
-- The comment must start with the name of the symbol itself (e.g. `// Config holds...`).
 
 ### 3. Readability & Function Length
 - Readability is prioritized over clever or overly optimized code.
