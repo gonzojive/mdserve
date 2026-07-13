@@ -28,3 +28,41 @@ func TestServeDirectory_IncludesHiddenFiles(t *testing.T) {
 		}
 	}
 }
+
+// TestServeDirectory_ExcludeGit verifies that .git is excluded or included
+// in directory listings depending on ShowAllFiles.
+func TestServeDirectory_ExcludeGit(t *testing.T) {
+	root := makeTempDir(t)
+
+	// Case 1: ShowAllFiles is false (default) -> .git is excluded
+	{
+		origShowAll := ShowAllFiles
+		ShowAllFiles = false
+		defer func() { ShowAllFiles = origShowAll }()
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		serveDirectory(rec, req, root, "/", root)
+
+		body := rec.Body.String()
+		if strings.Contains(body, ".git") {
+			t.Error("expected .git directory to be excluded when ShowAllFiles is false")
+		}
+	}
+
+	// Case 2: ShowAllFiles is true -> .git is included
+	{
+		origShowAll := ShowAllFiles
+		ShowAllFiles = true
+		defer func() { ShowAllFiles = origShowAll }()
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		serveDirectory(rec, req, root, "/", root)
+
+		body := rec.Body.String()
+		if !strings.Contains(body, ".git") {
+			t.Error("expected .git directory to be included when ShowAllFiles is true")
+		}
+	}
+}

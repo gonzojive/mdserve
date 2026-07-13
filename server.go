@@ -21,6 +21,8 @@ func runServer(port int, targetDir string, allFlag bool) error {
 		return fmt.Errorf("error resolving path: %w", err)
 	}
 
+	InitGitIgnore(absDir)
+
 	log.Printf("Starting Markdown Server in: %s", absDir)
 
 	// Create and start event hub
@@ -54,6 +56,11 @@ func runServer(port int, targetDir string, allFlag bool) error {
 		// Clean path to prevent path traversal
 		cleanPath := filepath.Clean(urlPath)
 		if strings.HasPrefix(cleanPath, "..") {
+			http.Error(w, "Access Denied", http.StatusForbidden)
+			return
+		}
+
+		if ShouldExcludePath(cleanPath, ShowAllFiles) {
 			http.Error(w, "Access Denied", http.StatusForbidden)
 			return
 		}

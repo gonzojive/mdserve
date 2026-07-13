@@ -9,6 +9,7 @@ go_library(
     srcs = [
         "cli.go",
         "config.go",
+        "filter.go",
         "handler.go",
         "hub.go",
         "main.go",
@@ -49,6 +50,7 @@ go_test(
     srcs = [
         "cli_test.go",
         "config_test.go",
+        "filter_test.go",
         "handler_test.go",
         "hub_test.go",
         "parser_test.go",

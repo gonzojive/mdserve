@@ -238,10 +238,13 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, dirPath, relPath str
 	var items []DirItem
 	for _, entry := range entries {
 		name := entry.Name()
-		if name == ".git" {
+		if ShouldExcludeName(name, ShowAllFiles) {
 			continue
 		}
 		itemPath := filepath.Join(relPath, name)
+		if GitIgnoreInstance != nil && GitIgnoreInstance.Match(itemPath) && !ShowAllFiles {
+			continue
+		}
 		
 		info, err := entry.Info()
 		if err != nil {
