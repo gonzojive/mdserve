@@ -257,7 +257,12 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, dirPath, relPath str
 			relRepoPath = filepath.Join(relPath, name)
 		}
 
-		if GitIgnoreInstance != nil && GitIgnoreInstance.Match(relRepoPath, isDir) && !ShowAllFiles {
+		// Determine if it should be treated as hidden/ignored
+		isDotHidden := len(name) > 0 && name[0] == '.'
+		isGitIgnored := GitIgnoreInstance != nil && GitIgnoreInstance.Match(relRepoPath, isDir)
+		isHidden := isDotHidden || isGitIgnored
+
+		if ShouldExcludeName(name, ShowAllFiles) || (isGitIgnored && !ShowAllFiles) {
 			continue
 		}
 
@@ -271,13 +276,19 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, dirPath, relPath str
 		isMD := ext == ".md"
 
 		if isDir {
-			items = append(items, DirItem{Name: name, Path: itemPath, IsDir: true})
+			items = append(items, DirItem{
+				Name:     name,
+				Path:     itemPath,
+				IsDir:    true,
+				IsHidden: isHidden,
+			})
 		} else if ShowAllFiles || isMD {
 			items = append(items, DirItem{
-				Name:  name,
-				Path:  itemPath,
-				IsDir: false,
-				Size:  formatSize(info.Size()),
+				Name:     name,
+				Path:     itemPath,
+				IsDir:    false,
+				Size:     formatSize(info.Size()),
+				IsHidden: isHidden,
 			})
 		}
 	}

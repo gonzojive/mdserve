@@ -16,6 +16,7 @@ type FileNode struct {
 	IsDir    bool        `json:"isDir"`
 	Size     int64       `json:"size"`
 	SizeStr  string      `json:"sizeStr,omitempty"`
+	IsHidden bool        `json:"isHidden"`
 	Children []*FileNode `json:"children,omitempty"`
 }
 
@@ -42,10 +43,11 @@ type Breadcrumb struct {
 
 // DirItem represents a single item inside a directory listing.
 type DirItem struct {
-	Name  string
-	Path  string
-	IsDir bool
-	Size  string
+	Name     string
+	Path     string
+	IsDir    bool
+	Size     string
+	IsHidden bool
 }
 
 // formatSize formats a byte count into a human-readable size string (e.g. 10.5 KB).
@@ -98,8 +100,12 @@ func buildFileTree(rootDir string, showAll bool) (*FileNode, error) {
 				relRepoPath = relPath
 			}
 
+			// Determine if it should be treated as hidden/ignored
+			isDotHidden := len(name) > 0 && name[0] == '.'
 			isGitIgnored := GitIgnoreInstance != nil && GitIgnoreInstance.Match(relRepoPath, isDir)
-			if isGitIgnored && !showAll {
+			isHidden := isDotHidden || isGitIgnored
+
+			if ShouldExcludeName(name, showAll) || (isGitIgnored && !showAll) {
 				continue
 			}
 
@@ -111,10 +117,11 @@ func buildFileTree(rootDir string, showAll bool) (*FileNode, error) {
 			}
 
 			node := &FileNode{
-				Name:  name,
-				Path:  relPathUrl,
-				IsDir: isDir,
-				Size:  info.Size(),
+				Name:     name,
+				Path:     relPathUrl,
+				IsDir:    isDir,
+				IsHidden: isHidden,
+				Size:     info.Size(),
 			}
 			if isDir {
 				var children []*FileNode

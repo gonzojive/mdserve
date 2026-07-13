@@ -205,6 +205,15 @@
         margin: 2px 0;
       }
 
+      .tree-node.hidden-node {
+        opacity: 0.6;
+        transition: opacity 0.2s;
+      }
+
+      .tree-node.hidden-node:hover {
+        opacity: 1.0;
+      }
+
       .tree-item-wrapper {
         display: flex;
         align-items: center;
@@ -644,6 +653,15 @@
         box-shadow: var(--shadow-sm);
       }
 
+      .dir-card.hidden-card {
+        opacity: 0.6;
+        transition: opacity 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      }
+
+      .dir-card.hidden-card:hover {
+        opacity: 1.0;
+      }
+
       .dir-card-icon {
         width: 36px;
         height: 36px;
@@ -889,7 +907,7 @@
                 <p class="dir-description">Select a folder or a file to view its rendering.</p>
                 <div class="dir-grid">
                     {{range .DirItems}}
-                        <a href="{{.Path}}" class="dir-card">
+                        <a href="{{.Path}}" class="dir-card{{if .IsHidden}} hidden-card{{end}}">
                             {{if .IsDir}}
                                 <svg class="dir-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                             {{else}}
@@ -1022,6 +1040,28 @@
         setTheme(currentMode === 'dark' ? 'light' : 'dark');
       });
 
+      // Collapsed State Management (localStorage)
+      // Preserves directory collapse/expand choices across browser refreshes.
+      const getCollapsedState = (path) => {
+        try {
+          const state = JSON.parse(localStorage.getItem('mdserve_collapsed_state') || '{}');
+          return state[path];
+        } catch (e) {
+          console.error('Error reading collapsed state:', e);
+          return undefined;
+        }
+      };
+
+      const setCollapsedState = (path, isCollapsed) => {
+        try {
+          const state = JSON.parse(localStorage.getItem('mdserve_collapsed_state') || '{}');
+          state[path] = isCollapsed;
+          localStorage.setItem('mdserve_collapsed_state', JSON.stringify(state));
+        } catch (e) {
+          console.error('Error saving collapsed state:', e);
+        }
+      };
+
       // Render File Tree in Sidebar
       const fileTreeRoot = document.getElementById('file-tree-root');
 
@@ -1030,6 +1070,9 @@
         nodes.forEach(node => {
           const li = document.createElement('li');
           li.className = 'tree-node';
+          if (node.isHidden) {
+             li.classList.add('hidden-node');
+          }
 
           const itemWrapper = document.createElement('div');
           itemWrapper.className = 'tree-item-wrapper';
@@ -1040,7 +1083,8 @@
           // Arrow indicator for dirs
           const arrow = document.createElement('div');
           arrow.className = 'tree-arrow';
-          if (node.isDir) {
+          const hasChildren = node.isDir && node.children && node.children.length > 0;
+          if (hasChildren) {
              arrow.innerHTML = '<svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>';
           } else {
              arrow.classList.add('leaf');
@@ -1070,18 +1114,28 @@
           li.appendChild(itemWrapper);
 
           // Children container (if dir)
-          if (node.isDir && node.children && node.children.length > 0) {
+          if (hasChildren) {
              const subContainer = document.createElement('ul');
              subContainer.className = 'tree-children';
              li.appendChild(subContainer);
              renderTree(node.children, subContainer, node.path);
 
-             // Handle collapse / expand logic
-             subContainer.classList.add('expanded');
+             // Restore collapsed state from localStorage if available,
+             // otherwise default to auto-expanding if it contains the active file.
+             const userState = getCollapsedState(node.path);
+             const isParentOfCurrent = currentPath.startsWith(node.path + '/') || currentPath === node.path;
+             const shouldExpand = userState !== undefined ? !userState : isParentOfCurrent;
+
+             if (shouldExpand) {
+                subContainer.classList.add('expanded');
+             } else {
+                arrow.classList.add('collapsed');
+             }
 
              const toggleDir = () => {
                 const isExpanded = subContainer.classList.toggle('expanded');
                 arrow.classList.toggle('collapsed', !isExpanded);
+                setCollapsedState(node.path, !isExpanded);
              };
 
              arrow.addEventListener('click', (e) => {
