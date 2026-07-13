@@ -1040,6 +1040,28 @@
         setTheme(currentMode === 'dark' ? 'light' : 'dark');
       });
 
+      // Collapsed State Management (localStorage)
+      // Preserves directory collapse/expand choices across browser refreshes.
+      const getCollapsedState = (path) => {
+        try {
+          const state = JSON.parse(localStorage.getItem('mdserve_collapsed_state') || '{}');
+          return state[path];
+        } catch (e) {
+          console.error('Error reading collapsed state:', e);
+          return undefined;
+        }
+      };
+
+      const setCollapsedState = (path, isCollapsed) => {
+        try {
+          const state = JSON.parse(localStorage.getItem('mdserve_collapsed_state') || '{}');
+          state[path] = isCollapsed;
+          localStorage.setItem('mdserve_collapsed_state', JSON.stringify(state));
+        } catch (e) {
+          console.error('Error saving collapsed state:', e);
+        }
+      };
+
       // Render File Tree in Sidebar
       const fileTreeRoot = document.getElementById('file-tree-root');
 
@@ -1097,9 +1119,13 @@
              li.appendChild(subContainer);
              renderTree(node.children, subContainer, node.path);
 
-             // Handle collapse / expand logic
+             // Restore collapsed state from localStorage if available,
+             // otherwise default to auto-expanding if it contains the active file.
+             const userState = getCollapsedState(node.path);
              const isParentOfCurrent = currentPath.startsWith(node.path + '/') || currentPath === node.path;
-             if (isParentOfCurrent) {
+             const shouldExpand = userState !== undefined ? !userState : isParentOfCurrent;
+
+             if (shouldExpand) {
                 subContainer.classList.add('expanded');
              } else {
                 arrow.classList.add('collapsed');
@@ -1108,6 +1134,7 @@
              const toggleDir = () => {
                 const isExpanded = subContainer.classList.toggle('expanded');
                 arrow.classList.toggle('collapsed', !isExpanded);
+                setCollapsedState(node.path, !isExpanded);
              };
 
              arrow.addEventListener('click', (e) => {
