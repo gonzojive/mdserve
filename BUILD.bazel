@@ -1,0 +1,58 @@
+load("@gazelle//:def.bzl", "gazelle")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+# gazelle:prefix mdserve
+gazelle(name = "gazelle")
+
+go_library(
+    name = "mdserve_lib",
+    srcs = [
+        "cli.go",
+        "config.go",
+        "handler.go",
+        "hub.go",
+        "main.go",
+        "parser.go",
+        "server.go",
+        "tree.go",
+        "watcher.go",
+    ],
+    embedsrcs = [
+        "templates/main.html",
+        "third_party/github-markdown.min.css",
+        "third_party/highlight-github-dark.min.css",
+        "third_party/highlight-github.min.css",
+        "third_party/highlight.min.js",
+        "third_party/mermaid.min.js",
+    ],
+    importpath = "mdserve",
+    visibility = ["//visibility:private"],
+    deps = [
+        "@com_github_fsnotify_fsnotify//:fsnotify",
+        "@com_github_spf13_cobra//:cobra",
+        "@com_github_yuin_goldmark//:goldmark",
+        "@com_github_yuin_goldmark//extension",
+        "@com_github_yuin_goldmark//parser",
+        "@com_github_yuin_goldmark//renderer/html",
+        "@com_github_yuin_goldmark_meta//:goldmark-meta",
+    ],
+)
+
+go_binary(
+    name = "mdserve",
+    embed = [":mdserve_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "mdserve_test",
+    srcs = [
+        "cli_test.go",
+        "config_test.go",
+        "handler_test.go",
+        "hub_test.go",
+        "parser_test.go",
+        "tree_test.go",
+    ],
+    embed = [":mdserve_lib"],
+)
