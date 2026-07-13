@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Run tests (mdserve)
+        run: go test -v ./...
+
+      - name: Build (mdserve)
+        run: go build -v ./...
+
+      - name: Run tests (devtool)
+        run: go test -v ./go/cmd/devtool/...
+
+      - name: Build (devtool)
+        run: go build -v ./go/cmd/devtool/...
