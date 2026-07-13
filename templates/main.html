@@ -1070,7 +1070,7 @@
         nodes.forEach(node => {
           const li = document.createElement('li');
           li.className = 'tree-node';
-          if (node.name.startsWith('.') && node.name !== '.') {
+          if (node.isHidden) {
              li.classList.add('hidden-node');
           }
 
