@@ -60,12 +60,12 @@ func runServer(port int, targetDir string, allFlag bool) error {
 			return
 		}
 
-		if ShouldExcludePath(cleanPath, ShowAllFiles) {
+		localPath := filepath.Join(absDir, cleanPath)
+
+		if ShouldExcludePath(localPath, ShowAllFiles) {
 			http.Error(w, "Access Denied", http.StatusForbidden)
 			return
 		}
-
-		localPath := filepath.Join(absDir, cleanPath)
 
 		// Check if file or directory exists
 		info, err := os.Stat(localPath)
